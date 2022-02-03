@@ -1,0 +1,37 @@
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: linkerd-failover
+  labels:
+    linkerd.io/extension: failover
+rules:
+- apiGroups: ["split.smi-spec.io"]
+  resources: ["trafficsplits"]
+  verbs: ["list", "get", "watch"]
+- apiGroups: [""]
+  resources: ["endpoints"]
+  verbs: ["list", "get", "watch"]
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: linkerd-failover
+  labels:
+    linkerd.io/extension: failover
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: linkerd-failover
+subjects:
+- kind: ServiceAccount
+  name: linkerd-failover
+  namespace: {{.Release.Namespace}}
+---
+kind: ServiceAccount
+apiVersion: v1
+metadata:
+  name: linkerd-failover
+  labels:
+    linkerd.io/extension: failover
+

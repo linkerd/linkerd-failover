@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+
+set -eu
+
+if [ $# -ne 0 ]; then
+    echo "no arguments allowed for ${0##*/}, given: $*" >&2
+    exit 64
+fi
+
+bindir=$( cd "${BASH_SOURCE[0]%/*}" && pwd )
+rootdir=$( cd "$bindir"/.. && pwd )
+# shellcheck source=_tag.sh
+. "$bindir"/_tag.sh
+
+# shellcheck source=_os.sh
+. "$bindir"/_os.sh
+
+export DOCKER_REGISTRY=${DOCKER_REGISTRY:-cr.l5d.io/linkerd}
+
+# buildx cache directory
+export DOCKER_BUILDKIT_CACHE=${DOCKER_BUILDKIT_CACHE:-}
+
+# When set together with DOCKER_MULTIARCH, it will push the multi-arch images to the registry
+export DOCKER_PUSH=${DOCKER_PUSH:-}
+
+# build the multi-arch images
+export DOCKER_MULTIARCH=${DOCKER_MULTIARCH:-}
+
+# Default supported docker image architectures
+export SUPPORTED_ARCHS=${SUPPORTED_ARCHS:-linux/amd64,linux/arm64,linux/arm/v7}
+
+export DOCKER_TARGET=${DOCKER_TARGET:-$(os)}
+
+if [ "$DOCKER_TARGET" = 'multi-arch' ]; then
+    echo "DOCKER_TARGET may not be set to 'multi-arch' with $0" >&2
+    exit 1
+fi
+
+cache_params=""
+if [ -n "$DOCKER_BUILDKIT_CACHE" ]; then
+    cache_params="--cache-from type=local,src=${DOCKER_BUILDKIT_CACHE} --cache-to type=local,dest=${DOCKER_BUILDKIT_CACHE},mode=max"
+fi
+
+output_params=""
+if [ -n "$DOCKER_PUSH" ]; then
+    output_params+=" --push"
+else
+    output_params+=" --load"
+fi
+
+if [ -n "$DOCKER_MULTIARCH" ]; then
+    output_params+=" --platform $SUPPORTED_ARCHS"
+fi
+
+arch=$(architecture)
+
+# shellcheck disable=SC2086
+docker buildx build "$rootdir" $cache_params \
+    $output_params \
+    -t "$DOCKER_REGISTRY/linkerd-failover:$(head_root_tag)" \
+    -f "$rootdir/$arch.dockerfile" \
+    "$@"

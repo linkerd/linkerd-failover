@@ -1,0 +1,18 @@
+# Docker image for the operator
+image:
+  registry: cr.l5d.io/linkerd
+  name: linkerd-failover
+  tag: latest
+
+# -- Determines which `TrafficSplit` instances to consider for failover. Not
+# implemented yet.
+labelSelector:
+  managed-by: linkerd-failover
+
+trafficSplit:
+  # -- Namespace for the TS to watch
+  namespace:
+  # -- Name for the TS to watch
+  name:
+  # -- Primary service out of the backends list in the TS
+  primaryService:

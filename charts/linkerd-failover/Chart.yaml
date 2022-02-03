@@ -1,0 +1,15 @@
+apiVersion: v2
+name: linkerd-failover
+type: application
+home: https://linkerd.io
+keywords:
+- service-mesh
+kubeVersion: ">=1.20.0-0"
+sources:
+- https://github.com/linkerd/linkerd-failover/
+version: 0.1.0
+icon: https://linkerd.io/images/logo-only-200h.png
+maintainers:
+  - name: Linkerd authors
+    email: cncf-linkerd-dev@lists.cncf.io
+    url: https://linkerd.io/

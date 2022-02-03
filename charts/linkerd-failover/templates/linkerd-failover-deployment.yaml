@@ -1,0 +1,37 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    config.linkerd.io/proxy-await: "enabled"
+  labels:
+    linkerd.io/extension: failover
+    app.kubernetes.io/name: linkerd-failover
+    app.kubernetes.io/part-of: Linkerd
+    app.kubernetes.io/version: {{.Values.image.tag}}
+  name: linkerd-failover
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      linkerd.io/extension: failover
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/linkerd-failover-rbac.yaml") . | sha256sum }}
+        {{- end }}
+        linkerd.io/inject: enabled
+      labels:
+        linkerd.io/extension: failover
+    spec:
+      containers:
+      - env:
+        - name: TS_NAMESPACE
+          value: {{ .Values.trafficSplit.namespace }}
+        - name: TS_NAME
+          value: {{ .Values.trafficSplit.name }}
+        - name: SVC_PRIMARY
+          value: {{ .Values.trafficSplit.primaryService }}
+        image: {{.Values.image.registry }}/{{.Values.image.name}}:{{.Values.image.tag }}
+        name: linkerd-failover
+      serviceAccountName: linkerd-failover
