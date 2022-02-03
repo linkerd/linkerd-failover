@@ -1,4 +1,4 @@
-# Linkerd-failover
+# linkerd-failover
 
 Linkerd-failover is a Linkerd extension whose goal is to provide a failover
 mechanism so that a service that exists in multiple clusters may continue to
@@ -43,11 +43,11 @@ The following describes the logic used to change the `TrafficSplit` weights:
   the weights for all the secondary backends to zero.
 - Whenever the primary backend is not ready, the following rules apply only if
   there is at least one secondary backend that is ready:
-    - The primary backend’s weight is set to zero
-    - The weight is distributed equally among all the secondary backends that
-      are ready
-    - Whenever a secondary backend changes its readiness, the weight is
-      redistributed among all the secondary backends that are ready
+  - The primary backend’s weight is set to zero
+  - The weight is distributed equally among all the secondary backends that
+    are ready
+  - Whenever a secondary backend changes its readiness, the weight is
+    redistributed among all the secondary backends that are ready
 - Whenever both the primary and secondaries are all unavailable, the connection
   will fail at the client-side, as expected.
 
@@ -88,6 +88,7 @@ helm install linkerd-failover -n linkerd-failover --create-namespace --devel lin
 ```console
 TS_NAMESPACE=xxx TS_NAME=xxx SVC_PRIMARY=xxx cargo run
 ```
+
 ## Example
 
 The following `TrafficSplit` serves as the initial state for a failover setup.
