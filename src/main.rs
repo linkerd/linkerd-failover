@@ -86,18 +86,18 @@ async fn reconcile_ep(ep: Arc<Endpoints>, ctx: Context<Data>) -> Result<Reconcil
     }
 
     let mut backends = ts_state.backends.clone();
-    for i in 0..backends.len() {
+    for backend in &mut backends {
         let mut backend_empty = false;
         for ep_watched in &eps_state.ep {
-            if ep_watched.name() == backends[i].service {
+            if ep_watched.name() == backend.service {
                 backend_empty = ep_watched.subsets.is_none();
                 break;
             }
         }
-        if backend_empty || (backends[i].service != data.svc_primary && failovers_disabled) {
-            backends[i].weight = 0
+        if backend_empty || (backend.service != data.svc_primary && failovers_disabled) {
+            backend.weight = 0
         } else {
-            backends[i].weight = 1
+            backend.weight = 1
         }
     }
 
@@ -205,8 +205,8 @@ async fn main() -> Result<()> {
                 ts_name: ts_name.clone(),
                 ts_ns: ts_namespace.clone(),
                 svc_primary: svc_primary.clone(),
-                ts: Arc::clone(&ts_state),
-                ep_list: Arc::clone(&ep_list),
+                ts: ts_state.clone(),
+                ep_list: ep_list.clone(),
             }),
         )
         .for_each(|res| async move {
