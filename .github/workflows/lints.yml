@@ -1,21 +1,17 @@
 name: lints
-
- on:
+on:
    pull_request:
      paths:
        - rust-toolchain
        - src
        - .github/workflows/lints.yml
-
- permissions:
+permissions:
    contents: read
-
 env:
   CARGO_INCREMENTAL: 0
   CARGO_NET_RETRY: 10
   RUST_BACKTRACE: short
   RUSTUP_MAX_RETRIES: 10
-
 jobs:
   fmt:
     timeout-minutes: 5
@@ -26,7 +22,6 @@ jobs:
       - uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579
       - run: rustup component add rustfmt
       - run: cargo fmt --all -- --check
-
   clippy:
     timeout-minutes: 5
     runs-on: ubuntu-latest
