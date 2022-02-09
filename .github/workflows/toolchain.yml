@@ -1,12 +1,16 @@
 name: rust-toolchain
+
 on:
   pull_request:
     paths:
       - rust-toolchain
       - "*.dockerfile"
       - .devcontainers/Dockerfile
+      - .github/workflows/toolchain.yml
+
 permissions:
   contents: read
+
 env:
   YQ_VERSION: v4.2.0
 
