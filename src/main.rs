@@ -1,5 +1,5 @@
 use anyhow::Result;
-use futures::stream::StreamExt;
+use futures::{future::TryFutureExt, stream::StreamExt};
 use k8s_openapi::api::core::v1::Endpoints;
 use kube::{
     api::{Api, ListParams, Patch, PatchParams},
@@ -12,6 +12,7 @@ use std::sync::Arc;
 use thiserror::Error;
 use tokio::sync::Mutex;
 use tokio::time::Duration;
+use tracing::Instrument;
 
 #[derive(Debug, Error)]
 enum Error {}
@@ -214,7 +215,10 @@ async fn main() -> Result<()> {
                 Ok(o) => tracing::info!("reconciled {:?}", o),
                 Err(error) => tracing::warn!(%error, "reconcile failed"),
             }
-        });
+        })
+        .instrument(tracing::info_span!("trafficsplits"));
+    let ts_controller = tokio::spawn(ts_controller)
+        .unwrap_or_else(|error| panic!("TrafficSplit controller panicked: {}", error));
 
     let eps_api = Api::<Endpoints>::namespaced(client.clone(), &ts_namespace);
     let eps_controller = Controller::new(eps_api, ListParams::default())
@@ -236,9 +240,12 @@ async fn main() -> Result<()> {
                 Ok(o) => tracing::info!("reconciled {:?}", o),
                 Err(error) => tracing::warn!(%error, "reconcile failed"),
             }
-        });
+        })
+        .instrument(tracing::info_span!("endpoints"));
+    let eps_controller = tokio::spawn(eps_controller)
+        .unwrap_or_else(|error| panic!("Endpoints controller panicked: {}", error));
 
-    futures::join!(ts_controller, eps_controller);
+    tokio::join!(ts_controller, eps_controller);
 
     tracing::info!("controller terminated");
     Ok(())
