@@ -6,7 +6,7 @@ on:
       - rust-toolchain
       - "*.dockerfile"
       - .devcontainers/Dockerfile
-      - .github/workflows/toolchain.yml
+      - ".github/workflows/*"
 
 permissions:
   contents: read
