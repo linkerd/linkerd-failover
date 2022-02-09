@@ -1,0 +1,31 @@
+name: rust-toolchain
+
+on:
+  pull_request:
+    paths:
+      - rust-toolchain
+      - *.dockerfile
+      - .devcontainers/Dockerfile
+
+permissions:
+  contents: read
+
+jobs:
+  dockerfiles:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579
+      - run: |
+          ex=0
+          for f in $(find . -name Dockerfile -or -name \*.dockerfile); do
+            versions=$(sed -nE 's/^ARG RUST_VERSION=([^ ]+)/\1/p' $f)
+            if [ -z "$versions" ]; then
+              echo "::error file=$f::$f missing `RUST_VERSION` argument"
+              ex=$((ex + 1))
+            fi
+            for mismatch in $(echo "$version" | grep -vF "$(cat rust-toolchain)" || true) ; do
+              echo "::error file=$f::$f uses incorrect rust version(s): $mismatch"
+              ex=$((ex + 1))
+            done
+          done
+          exit $ex
