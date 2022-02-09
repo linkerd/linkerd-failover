@@ -1,5 +1,3 @@
-#[macro_use]
-extern crate log;
 use anyhow::Result;
 use futures::stream::StreamExt;
 use k8s_openapi::api::core::v1::Endpoints;
@@ -53,7 +51,7 @@ async fn reconcile_ts(
     ts: Arc<TrafficSplit>,
     ctx: Context<Data>,
 ) -> Result<ReconcilerAction, Error> {
-    log::info!("TS update: {:?}", ts);
+    tracing::debug!(?ts, "traffic split update");
 
     let data = ctx.get_ref();
     let mut ts_state = data.ts.lock().await;
@@ -70,7 +68,7 @@ async fn reconcile_ts(
 }
 
 async fn reconcile_ep(ep: Arc<Endpoints>, ctx: Context<Data>) -> Result<ReconcilerAction, Error> {
-    log::info!("EP update: {:?}", ep);
+    tracing::debug!(?ep, "endpoint update");
 
     let data = ctx.get_ref();
     let mut ts_state = data.ts.lock().await;
@@ -139,7 +137,7 @@ async fn sync_eps(ns: &str, backends: Vec<Backend>, data: &Data) {
 }
 
 fn error_policy(error: &Error, _ctx: Context<Data>) -> ReconcilerAction {
-    log::error!("{}", error);
+    tracing::error!(%error);
     ReconcilerAction {
         requeue_after: Some(Duration::from_secs(1)),
     }
@@ -161,22 +159,30 @@ async fn patch_ts(
             "backends": backends
         }
     });
-    log::info!("patch: {:?}", patch);
+    tracing::info!(?patch);
     ts_api.patch(name, &ssapply, &Patch::Merge(patch)).await
 }
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    std::env::set_var("RUST_LOG", "info,kube-runtime=debug,kube=debug");
-    env_logger::init();
+    use std::env;
+    use tracing_subscriber::{prelude::*, EnvFilter};
+
+    let log_filter = env::var("RUST_LOG")
+        .unwrap_or_else(|_| String::from("info,kube-runtime=debug,kube=debug"))
+        .parse::<EnvFilter>()?;
+    tracing_subscriber::registry()
+        .with(tracing_subscriber::fmt::layer())
+        .with(log_filter)
+        .init();
 
     let ts_namespace =
-        std::env::var("TS_NAMESPACE").expect("the TS_NAMESPACE environment variable is required");
-    let ts_name = std::env::var("TS_NAME").expect("the TS_NAME environment variable is required");
+        env::var("TS_NAMESPACE").expect("the TS_NAMESPACE environment variable is required");
+    let ts_name = env::var("TS_NAME").expect("the TS_NAME environment variable is required");
     let svc_primary =
-        std::env::var("SVC_PRIMARY").expect("the SVC_PRIMARY environment variable is required");
+        env::var("SVC_PRIMARY").expect("the SVC_PRIMARY environment variable is required");
 
-    log::info!(
+    tracing::info!(
         "watching TrafficSplit \"{}\" and Endpoints over the namespace \"{}\"",
         &ts_name,
         &ts_namespace
@@ -205,8 +211,8 @@ async fn main() -> Result<()> {
         )
         .for_each(|res| async move {
             match res {
-                Ok(o) => info!("reconciled {:?}", o),
-                Err(e) => warn!("reconcile failed: {}", e),
+                Ok(o) => tracing::info!("reconciled {:?}", o),
+                Err(error) => tracing::warn!(%error, "reconcile failed"),
             }
         });
 
@@ -227,13 +233,13 @@ async fn main() -> Result<()> {
         )
         .for_each(|res| async move {
             match res {
-                Ok(o) => info!("reconciled {:?}", o),
-                Err(e) => warn!("reconcile failed: {}", e),
+                Ok(o) => tracing::info!("reconciled {:?}", o),
+                Err(error) => tracing::warn!(%error, "reconcile failed"),
             }
         });
 
     futures::join!(ts_controller, eps_controller);
 
-    log::info!("controller terminated");
+    tracing::info!("controller terminated");
     Ok(())
 }
