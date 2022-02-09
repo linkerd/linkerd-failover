@@ -3,6 +3,7 @@ name = "linkerd-failover"
 version = "0.1.0"
 authors = ["Linkerd authors <cncf-linkerd-dev@lists.cncf.io>"]
 edition = "2018"
+license = "Apache-2.0"
 
 [features]
 default = ["runtime"]
@@ -20,4 +21,4 @@ thiserror = "1.0.30"
 tokio = { version = "1.16.1", features = ["full"] }
 tokio-stream = "0.1.8"
 tracing = "0.1.30"
-tracing-subscriber = { version = "0.3.8", features = ["fmt", "env-filter"]}
+tracing-subscriber = { version = "0.3.8", features = ["fmt", "env-filter"] }
