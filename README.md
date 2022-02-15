@@ -25,9 +25,6 @@ services can be located in the current cluster or they can point to mirror
 services backed by services in other clusters (through Linkerd's multicluster
 functionality).
 
-> Note: Currently this annotation is not being used, and instead the primary
-service is declared through the `trafficSplit.primaryService` Helm value.
-
 ## Operator
 
 Linkerd-failover is an operator to be installed in the local cluster (there
@@ -65,8 +62,6 @@ The following Helm values are available:
   implemented, so you must fallback to the next settings.
 - `trafficSplit.namespace` and `trafficSplit.name`: namespace and name of the
   `TrafficSplit` resource to watch.
-- `trafficSplit.primaryService`: Primary service out of the backends list in the
-  `TrafficSplit`.
 
 ## Installation
 
@@ -86,7 +81,7 @@ helm install linkerd-failover -n linkerd-failover --create-namespace --devel lin
 ### Running locally for testing
 
 ```console
-TS_NAMESPACE=xxx TS_NAME=xxx SVC_PRIMARY=xxx cargo run
+TS_NAMESPACE=xxx TS_NAME=xxx cargo run
 ```
 
 ## Example

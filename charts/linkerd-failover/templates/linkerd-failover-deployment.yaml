@@ -30,8 +30,6 @@ spec:
           value: {{ .Values.trafficSplit.namespace }}
         - name: TS_NAME
           value: {{ .Values.trafficSplit.name }}
-        - name: SVC_PRIMARY
-          value: {{ .Values.trafficSplit.primaryService }}
         image: {{.Values.image.registry }}/{{.Values.image.name}}:{{.Values.image.tag }}
         name: linkerd-failover
       serviceAccountName: linkerd-failover
