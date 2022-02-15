@@ -1,7 +1,5 @@
-#[macro_use]
-extern crate log;
 use anyhow::Result;
-use futures::stream::StreamExt;
+use futures::{future::TryFutureExt, stream::StreamExt};
 use k8s_openapi::api::core::v1::Endpoints;
 use kube::{
     api::{Api, ListParams, Patch, PatchParams},
@@ -13,6 +11,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use thiserror::Error;
 use tokio::time::Duration;
+use tracing::Instrument;
 
 #[derive(Debug, Error)]
 enum Error {}
@@ -44,7 +43,7 @@ async fn reconcile_ts(
     ts: Arc<TrafficSplit>,
     ctx: Context<Data>,
 ) -> Result<ReconcilerAction, Error> {
-    log::info!("TS update: {:?}", ts);
+    tracing::debug!(?ts, "traffic split update");
 
     let svc_primary = match ts.annotations().get("failover.linkerd.io/primary-service") {
         Some(name) => name,
@@ -96,8 +95,8 @@ async fn reconcile_ts(
     })
 }
 
-fn error_policy<T>(error: &Error, _ctx: Context<T>) -> ReconcilerAction {
-    log::error!("{}", error);
+fn error_policy(error: &Error, _ctx: Context<Data>) -> ReconcilerAction {
+    tracing::error!(%error);
     ReconcilerAction {
         requeue_after: Some(Duration::from_secs(1)),
     }
@@ -119,20 +118,28 @@ async fn patch_ts(
             "backends": backends
         }
     });
-    log::info!("patch: {:?}", patch);
+    tracing::info!(?patch);
     ts_api.patch(name, &ssapply, &Patch::Merge(patch)).await
 }
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    std::env::set_var("RUST_LOG", "info,kube-runtime=debug,kube=debug");
-    env_logger::init();
+    use std::env;
+    use tracing_subscriber::{prelude::*, EnvFilter};
+
+    let log_filter = env::var("RUST_LOG")
+        .unwrap_or_else(|_| String::from("info,kube-runtime=debug,kube=debug"))
+        .parse::<EnvFilter>()?;
+    tracing_subscriber::registry()
+        .with(tracing_subscriber::fmt::layer())
+        .with(log_filter)
+        .init();
 
     let ts_namespace =
-        std::env::var("TS_NAMESPACE").expect("the TS_NAMESPACE environment variable is required");
-    let ts_name = std::env::var("TS_NAME").expect("the TS_NAME environment variable is required");
+        env::var("TS_NAMESPACE").expect("the TS_NAMESPACE environment variable is required");
+    let ts_name = env::var("TS_NAME").expect("the TS_NAME environment variable is required");
 
-    log::info!(
+    tracing::info!(
         "watching TrafficSplit \"{}\" and Endpoints over the namespace \"{}\"",
         &ts_name,
         &ts_namespace
@@ -153,7 +160,7 @@ async fn main() -> Result<()> {
     let ep_store1 = ep_writer.as_reader();
     let ep_store2 = ep_writer.as_reader();
 
-    let ep_stream = kube::runtime::reflector(ep_writer, kube::runtime::watcher(eps_api, ListParams::default())).then(move |ep| {
+    let eps_controller = kube::runtime::reflector(ep_writer, kube::runtime::watcher(eps_api, ListParams::default())).then(move |ep| {
         let ep_client=  ep_client.clone();
         let ts_store = ts_store.clone();
         let ep_reader = ep_store1.clone();
@@ -169,7 +176,7 @@ async fn main() -> Result<()> {
                         if ts.spec.backends.iter().any(|backend| backend.service == ep.name()) {
                             match reconcile_ts(ts.clone(), Context::new(Data{client: ep_client.clone(), ep_store: ep_reader.clone()})).await {
                                 Ok(_) => {},
-                                Err(error) => warn!("reconcile failed: {}", error),
+                                Err(error) => tracing::warn!("reconcile failed: {}", error),
                             };
                         }
                     }
@@ -178,7 +185,7 @@ async fn main() -> Result<()> {
         }
     }).for_each(|_| async {});
 
-    let ts_stream = ts_controller
+    let ts_controller = ts_controller
         .shutdown_on_signal()
         .run(
             reconcile_ts,
@@ -187,19 +194,19 @@ async fn main() -> Result<()> {
         )
         .for_each(|res| async move {
             match res {
-                Ok(o) => info!("reconciled {:?}", o),
-                Err(e) => warn!("reconcile failed: {}", e),
+                Ok(o) => tracing::info!("reconciled {:?}", o),
+                Err(error) => tracing::warn!(%error, "reconcile failed"),
             }
-        });
+        })
+        .instrument(tracing::info_span!("endpoints"));
 
-    match tokio::join!(
-        tokio::spawn(ep_stream),
-        tokio::spawn(ts_stream),
-    ) {
-        (_, Err(error)) => log::error!("endpoint controller failed: {}", error),
-        (Err(error), _) => log::error!("trafficsplit controller failed: {}", error),
-        _ => log::info!("controller terminated"),
-    };
+    let eps_controller = tokio::spawn(eps_controller)
+        .unwrap_or_else(|error| panic!("Endpoints controller panicked: {}", error));
+    let ts_controller = tokio::spawn(ts_controller)
+        .unwrap_or_else(|error| panic!("TrafficSplit controller panicked: {}", error));
 
+    tokio::join!(ts_controller, eps_controller);
+
+    tracing::info!("controller terminated");
     Ok(())
 }
