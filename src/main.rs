@@ -3,7 +3,11 @@ use futures::{future::TryFutureExt, stream::StreamExt};
 use k8s_openapi::api::core::v1::Endpoints;
 use kube::{
     api::{Api, ListParams, Patch, PatchParams},
-    runtime::{controller::{Context, Controller, ReconcilerAction}, reflector::ObjectRef, watcher::Event},
+    runtime::{
+        controller::{Context, Controller, ReconcilerAction},
+        reflector::ObjectRef,
+        watcher::Event,
+    },
     Client, CustomResource, ResourceExt,
 };
 use schemars::JsonSchema;
@@ -45,15 +49,21 @@ async fn reconcile_ts(
 ) -> Result<ReconcilerAction, Error> {
     tracing::debug!(?ts, "traffic split update");
 
+    let namespace = ts.namespace().expect("trafficsplit must be namespaced");
     let svc_primary = match ts.annotations().get("failover.linkerd.io/primary-service") {
         Some(name) => name,
-        None => return Ok(ReconcilerAction {
-            requeue_after: Some(Duration::from_secs(300)),
-        }),
+        None => {
+            return Ok(ReconcilerAction {
+                requeue_after: Some(Duration::from_secs(300)),
+            })
+        }
     };
-    let namespace = ts.namespace().expect("trafficsplit must be namespaced");
 
-    let failover = match ctx.get_ref().ep_store.get(&ObjectRef::new(svc_primary).within(&namespace)) {
+    let failover = match ctx
+        .get_ref()
+        .ep_store
+        .get(&ObjectRef::new(svc_primary).within(&namespace))
+    {
         Some(ep) => ep.subsets.is_none(),
         None => true,
     };
@@ -68,7 +78,11 @@ async fn reconcile_ts(
                 backend.weight = 1;
             }
         } else {
-            let empty = match ctx.get_ref().ep_store.get(&ObjectRef::new(&backend.service).within(&namespace)) {
+            let empty = match ctx
+                .get_ref()
+                .ep_store
+                .get(&ObjectRef::new(&backend.service).within(&namespace))
+            {
                 Some(ep) => ep.subsets.is_none(),
                 None => true,
             };
@@ -160,8 +174,12 @@ async fn main() -> Result<()> {
     let ep_store1 = ep_writer.as_reader();
     let ep_store2 = ep_writer.as_reader();
 
-    let eps_controller = kube::runtime::reflector(ep_writer, kube::runtime::watcher(eps_api, ListParams::default())).then(move |ep| {
-        let ep_client=  ep_client.clone();
+    let eps_controller = kube::runtime::reflector(
+        ep_writer,
+        kube::runtime::watcher(eps_api, ListParams::default()),
+    )
+    .for_each(move |ep| {
+        let ep_client = ep_client.clone();
         let ts_store = ts_store.clone();
         let ep_reader = ep_store1.clone();
         async move {
@@ -173,24 +191,40 @@ async fn main() -> Result<()> {
                 };
                 for ep in eps {
                     for ts in ts_store.state().iter() {
-                        if ts.spec.backends.iter().any(|backend| backend.service == ep.name()) {
-                            match reconcile_ts(ts.clone(), Context::new(Data{client: ep_client.clone(), ep_store: ep_reader.clone()})).await {
-                                Ok(_) => {},
-                                Err(error) => tracing::warn!("reconcile failed: {}", error),
+                        if ts
+                            .spec
+                            .backends
+                            .iter()
+                            .any(|backend| backend.service == ep.name())
+                        {
+                            match reconcile_ts(
+                                ts.clone(),
+                                Context::new(Data {
+                                    client: ep_client.clone(),
+                                    ep_store: ep_reader.clone(),
+                                }),
+                            )
+                            .await
+                            {
+                                Ok(_) => {}
+                                Err(error) => tracing::warn!(%error, "reconcile failed"),
                             };
                         }
                     }
                 }
             };
         }
-    }).for_each(|_| async {});
+    });
 
     let ts_controller = ts_controller
         .shutdown_on_signal()
         .run(
             reconcile_ts,
             error_policy,
-            Context::new(Data{client, ep_store: ep_store2}),
+            Context::new(Data {
+                client,
+                ep_store: ep_store2,
+            }),
         )
         .for_each(|res| async move {
             match res {
