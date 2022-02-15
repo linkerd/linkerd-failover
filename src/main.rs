@@ -5,14 +5,13 @@ use futures::stream::StreamExt;
 use k8s_openapi::api::core::v1::Endpoints;
 use kube::{
     api::{Api, ListParams, Patch, PatchParams},
-    runtime::controller::{Context, Controller, ReconcilerAction},
+    runtime::{controller::{Context, Controller, ReconcilerAction}, reflector::ObjectRef, watcher::Event},
     Client, CustomResource, ResourceExt,
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use thiserror::Error;
-use tokio::sync::Mutex;
 use tokio::time::Duration;
 
 #[derive(Debug, Error)]
@@ -36,17 +35,9 @@ struct Backend {
     weight: u32,
 }
 
-struct EndpointsList {
-    ep: Vec<Endpoints>,
-}
-
 struct Data {
     client: Client,
-    ts_name: String,
-    ts_ns: String,
-    svc_primary: String,
-    ts: Arc<Mutex<TrafficSplitSpec>>,
-    ep_list: Arc<Mutex<EndpointsList>>,
+    ep_store: kube::runtime::reflector::store::Store<Endpoints>,
 }
 
 async fn reconcile_ts(
@@ -55,61 +46,47 @@ async fn reconcile_ts(
 ) -> Result<ReconcilerAction, Error> {
     log::info!("TS update: {:?}", ts);
 
-    let data = ctx.get_ref();
-    let mut ts_state = data.ts.lock().await;
-    ts_state.backends = ts.spec.backends.clone();
-    sync_eps(
-        &ts.namespace().unwrap(),
-        ts_state.backends.to_vec(),
-        ctx.get_ref(),
-    )
-    .await;
-    Ok(ReconcilerAction {
-        requeue_after: Some(Duration::from_secs(300)),
-    })
-}
+    let svc_primary = match ts.annotations().get("failover.linkerd.io/primary-service") {
+        Some(name) => name,
+        None => return Ok(ReconcilerAction {
+            requeue_after: Some(Duration::from_secs(300)),
+        }),
+    };
+    let namespace = ts.namespace().expect("trafficsplit must be namespaced");
 
-async fn reconcile_ep(ep: Arc<Endpoints>, ctx: Context<Data>) -> Result<ReconcilerAction, Error> {
-    log::info!("EP update: {:?}", ep);
+    let failover = match ctx.get_ref().ep_store.get(&ObjectRef::new(svc_primary).within(&namespace)) {
+        Some(ep) => ep.subsets.is_none(),
+        None => true,
+    };
 
-    let data = ctx.get_ref();
-    let mut ts_state = data.ts.lock().await;
-
-    sync_eps(&ep.namespace().unwrap(), ts_state.backends.to_vec(), data).await;
-
-    let eps_state = data.ep_list.lock().await;
-
-    let mut failovers_disabled = false;
-    for ep_watched in &eps_state.ep {
-        if ep_watched.name() == data.svc_primary {
-            failovers_disabled = ep_watched.subsets.is_some();
-            break;
-        }
-    }
-
-    let mut backends = ts_state.backends.clone();
-    for i in 0..backends.len() {
-        let mut backend_empty = false;
-        for ep_watched in &eps_state.ep {
-            if ep_watched.name() == backends[i].service {
-                backend_empty = ep_watched.subsets.is_none();
-                break;
+    let mut backends = vec![];
+    for backend in &ts.spec.backends {
+        let mut backend = backend.clone();
+        if &backend.service == svc_primary {
+            if failover {
+                backend.weight = 0;
+            } else {
+                backend.weight = 1;
+            }
+        } else {
+            let empty = match ctx.get_ref().ep_store.get(&ObjectRef::new(&backend.service).within(&namespace)) {
+                Some(ep) => ep.subsets.is_none(),
+                None => true,
+            };
+            if failover && !empty {
+                backend.weight = 1;
+            } else {
+                backend.weight = 0;
             }
         }
-        if backend_empty || (backends[i].service != data.svc_primary && failovers_disabled) {
-            backends[i].weight = 0
-        } else {
-            backends[i].weight = 1
-        }
+        backends.push(backend);
     }
 
-    ts_state.backends = backends;
-
     patch_ts(
-        data.client.clone(),
-        &data.ts_ns,
-        &data.ts_name,
-        ts_state.backends.to_vec(),
+        ctx.get_ref().client.clone(),
+        &namespace,
+        &ts.name(),
+        backends,
     )
     .await
     .unwrap();
@@ -119,26 +96,7 @@ async fn reconcile_ep(ep: Arc<Endpoints>, ctx: Context<Data>) -> Result<Reconcil
     })
 }
 
-async fn sync_eps(ns: &str, backends: Vec<Backend>, data: &Data) {
-    let ep_api: Api<Endpoints> = Api::namespaced(data.client.clone(), ns);
-    let mut eps: Vec<Endpoints> = vec![];
-    for backend in backends {
-        let name = backend.service;
-        let ep = ep_api
-            .list(&ListParams::default().fields(&format!("metadata.name={}", name)))
-            .await
-            .unwrap()
-            .into_iter()
-            .next()
-            .unwrap();
-        eps.push(ep.clone());
-    }
-
-    let mut ep_list = data.ep_list.lock().await;
-    ep_list.ep = eps;
-}
-
-fn error_policy(error: &Error, _ctx: Context<Data>) -> ReconcilerAction {
+fn error_policy<T>(error: &Error, _ctx: Context<T>) -> ReconcilerAction {
     log::error!("{}", error);
     ReconcilerAction {
         requeue_after: Some(Duration::from_secs(1)),
@@ -173,8 +131,6 @@ async fn main() -> Result<()> {
     let ts_namespace =
         std::env::var("TS_NAMESPACE").expect("the TS_NAMESPACE environment variable is required");
     let ts_name = std::env::var("TS_NAME").expect("the TS_NAME environment variable is required");
-    let svc_primary =
-        std::env::var("SVC_PRIMARY").expect("the SVC_PRIMARY environment variable is required");
 
     log::info!(
         "watching TrafficSplit \"{}\" and Endpoints over the namespace \"{}\"",
@@ -185,23 +141,49 @@ async fn main() -> Result<()> {
     let client = Client::try_default().await?;
     let params = ListParams::default().fields(&format!("metadata.name={}", ts_name));
 
-    let ts_state = Arc::new(Mutex::new(TrafficSplitSpec { backends: vec![] }));
-    let ep_list = Arc::new(Mutex::new(EndpointsList { ep: vec![] }));
+    let eps_api = Api::<Endpoints>::namespaced(client.clone(), &ts_namespace);
 
     let ts_api = Api::<TrafficSplit>::namespaced(client.clone(), &ts_namespace);
-    let ts_controller = Controller::new(ts_api, params)
+    let ts_controller = Controller::new(ts_api, params);
+    let ts_store = ts_controller.store();
+
+    let ep_writer = kube::runtime::reflector::store::Writer::<Endpoints>::new(());
+
+    let ep_client = client.clone();
+    let ep_store1 = ep_writer.as_reader();
+    let ep_store2 = ep_writer.as_reader();
+
+    let ep_stream = kube::runtime::reflector(ep_writer, kube::runtime::watcher(eps_api, ListParams::default())).then(move |ep| {
+        let ep_client=  ep_client.clone();
+        let ts_store = ts_store.clone();
+        let ep_reader = ep_store1.clone();
+        async move {
+            if let Ok(ep) = ep {
+                let eps = match ep {
+                    Event::Applied(ep) => vec![ep],
+                    Event::Deleted(ep) => vec![ep],
+                    Event::Restarted(ep) => ep,
+                };
+                for ep in eps {
+                    for ts in ts_store.state().iter() {
+                        if ts.spec.backends.iter().any(|backend| backend.service == ep.name()) {
+                            match reconcile_ts(ts.clone(), Context::new(Data{client: ep_client.clone(), ep_store: ep_reader.clone()})).await {
+                                Ok(_) => {},
+                                Err(error) => warn!("reconcile failed: {}", error),
+                            };
+                        }
+                    }
+                }
+            };
+        }
+    }).for_each(|_| async {});
+
+    let ts_stream = ts_controller
         .shutdown_on_signal()
         .run(
             reconcile_ts,
             error_policy,
-            Context::new(Data {
-                client: client.clone(),
-                ts_name: ts_name.clone(),
-                ts_ns: ts_namespace.clone(),
-                svc_primary: svc_primary.clone(),
-                ts: Arc::clone(&ts_state),
-                ep_list: Arc::clone(&ep_list),
-            }),
+            Context::new(Data{client, ep_store: ep_store2}),
         )
         .for_each(|res| async move {
             match res {
@@ -210,30 +192,14 @@ async fn main() -> Result<()> {
             }
         });
 
-    let eps_api = Api::<Endpoints>::namespaced(client.clone(), &ts_namespace);
-    let eps_controller = Controller::new(eps_api, ListParams::default())
-        .shutdown_on_signal()
-        .run(
-            reconcile_ep,
-            error_policy,
-            Context::new(Data {
-                client: client.clone(),
-                ts_name: ts_name.clone(),
-                ts_ns: ts_namespace.clone(),
-                svc_primary: svc_primary.clone(),
-                ts: Arc::clone(&ts_state),
-                ep_list: Arc::clone(&ep_list),
-            }),
-        )
-        .for_each(|res| async move {
-            match res {
-                Ok(o) => info!("reconciled {:?}", o),
-                Err(e) => warn!("reconcile failed: {}", e),
-            }
-        });
+    match tokio::join!(
+        tokio::spawn(ep_stream),
+        tokio::spawn(ts_stream),
+    ) {
+        (_, Err(error)) => log::error!("endpoint controller failed: {}", error),
+        (Err(error), _) => log::error!("trafficsplit controller failed: {}", error),
+        _ => log::info!("controller terminated"),
+    };
 
-    futures::join!(ts_controller, eps_controller);
-
-    log::info!("controller terminated");
     Ok(())
 }
