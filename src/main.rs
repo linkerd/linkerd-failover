@@ -117,7 +117,7 @@ async fn sync_eps(backends: Vec<Backend>, data: &Data) -> Result<(), kube::Error
     for backend in backends {
         let params = ListParams::default().fields(&format!("metadata.name={}", backend.service));
         if let Some(ep) = ep_api.list(&params).await?.into_iter().next() {
-            eps.push(ep.clone());
+            eps.push(ep);
         }
     }
 
