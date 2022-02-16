@@ -5,7 +5,10 @@ use kube::{
     api::{Api, ListParams, Patch, PatchParams},
     runtime::{
         controller::{Context, Controller, ReconcilerAction},
-        reflector::ObjectRef,
+        reflector::{
+            store::{Store, Writer},
+            ObjectRef,
+        },
         watcher::Event,
     },
     Client, CustomResource, ResourceExt,
@@ -38,30 +41,35 @@ struct Backend {
     weight: u32,
 }
 
-struct Data {
+#[derive(Clone)]
+struct Ctx {
     client: Client,
-    ep_store: kube::runtime::reflector::store::Store<Endpoints>,
+    endpoints: Store<Endpoints>,
+    traffic_splits: Store<TrafficSplit>,
+    ts_ref: ObjectRef<TrafficSplit>,
 }
 
-async fn reconcile_ts(
-    ts: Arc<TrafficSplit>,
-    ctx: Context<Data>,
-) -> Result<ReconcilerAction, Error> {
-    tracing::debug!(?ts, "traffic split update");
+async fn reconcile_ts(ts: Arc<TrafficSplit>, ctx: Context<Ctx>) -> Result<ReconcilerAction, Error> {
+    tracing::debug!(?ts, "reconciling traffic split");
 
     let namespace = ts.namespace().expect("trafficsplit must be namespaced");
     let svc_primary = match ts.annotations().get("failover.linkerd.io/primary-service") {
         Some(name) => name,
         None => {
+            tracing::info!(
+                %namespace,
+                name = %ts.name(),
+                "trafficsplit is missing the `failover.linkerd.io/primary-service` annotation; skipping"
+            );
             return Ok(ReconcilerAction {
-                requeue_after: Some(Duration::from_secs(300)),
-            })
+                requeue_after: None,
+            });
         }
     };
 
     let failover = match ctx
         .get_ref()
-        .ep_store
+        .endpoints
         .get(&ObjectRef::new(svc_primary).within(&namespace))
     {
         Some(ep) => ep.subsets.is_none(),
@@ -80,7 +88,7 @@ async fn reconcile_ts(
         } else {
             let empty = match ctx
                 .get_ref()
-                .ep_store
+                .endpoints
                 .get(&ObjectRef::new(&backend.service).within(&namespace))
             {
                 Some(ep) => ep.subsets.is_none(),
@@ -109,7 +117,7 @@ async fn reconcile_ts(
     })
 }
 
-fn error_policy(error: &Error, _ctx: Context<Data>) -> ReconcilerAction {
+fn error_policy(error: &Error, _ctx: Context<Ctx>) -> ReconcilerAction {
     tracing::error!(%error);
     ReconcilerAction {
         requeue_after: Some(Duration::from_secs(1)),
@@ -160,87 +168,92 @@ async fn main() -> Result<()> {
     );
 
     let client = Client::try_default().await?;
-    let params = ListParams::default().fields(&format!("metadata.name={}", ts_name));
 
-    let eps_api = Api::<Endpoints>::namespaced(client.clone(), &ts_namespace);
+    let ts_controller = {
+        let api = Api::<TrafficSplit>::namespaced(client.clone(), &ts_namespace);
+        let params = ListParams::default().fields(&format!("metadata.name={}", ts_name));
+        Controller::new(api, params)
+    };
 
-    let ts_api = Api::<TrafficSplit>::namespaced(client.clone(), &ts_namespace);
-    let ts_controller = Controller::new(ts_api, params);
-    let ts_store = ts_controller.store();
+    let endpoints = Writer::<Endpoints>::new(());
 
-    let ep_writer = kube::runtime::reflector::store::Writer::<Endpoints>::new(());
+    let ctx = Context::new(Ctx {
+        client: client.clone(),
+        endpoints: endpoints.as_reader(),
+        traffic_splits: ts_controller.store(),
+        ts_ref: ObjectRef::new(&ts_name).within(&ts_namespace),
+    });
 
-    let ep_client = client.clone();
-    let ep_store1 = ep_writer.as_reader();
-    let ep_store2 = ep_writer.as_reader();
+    tokio::spawn({
+        let api = Api::<Endpoints>::namespaced(client.clone(), &ts_namespace);
+        let reflector = kube::runtime::reflector(
+            endpoints,
+            kube::runtime::watcher(api, ListParams::default()),
+        );
 
-    let eps_controller = kube::runtime::reflector(
-        ep_writer,
-        kube::runtime::watcher(eps_api, ListParams::default()),
-    )
-    .for_each(move |ep| {
-        let ep_client = ep_client.clone();
-        let ts_store = ts_store.clone();
-        let ep_reader = ep_store1.clone();
-        async move {
-            if let Ok(ep) = ep {
-                let eps = match ep {
-                    Event::Applied(ep) => vec![ep],
-                    Event::Deleted(ep) => vec![ep],
-                    Event::Restarted(ep) => ep,
-                };
-                for ep in eps {
-                    for ts in ts_store.state().iter() {
-                        if ts
-                            .spec
-                            .backends
-                            .iter()
-                            .any(|backend| backend.service == ep.name())
-                        {
-                            match reconcile_ts(
-                                ts.clone(),
-                                Context::new(Data {
-                                    client: ep_client.clone(),
-                                    ep_store: ep_reader.clone(),
-                                }),
-                            )
-                            .await
-                            {
-                                Ok(_) => {}
-                                Err(error) => tracing::warn!(%error, "reconcile failed"),
-                            };
-                        }
+        reflector
+            .fold(ctx.clone(), |ctx, ev| async move {
+                match ev {
+                    Ok(ev) => handle_endpoints(ev, &ctx).await,
+                    Err(error) => {
+                        // XXX Are we sure that the reconnect will happen gracefully? Do we need to deal
+                        // with backoff here? Are we going to hit this regularly? (If so, it should be
+                        // debug).
+                        tracing::warn!(%error, "endpoints watch failed");
                     }
                 }
-            };
-        }
+                ctx
+            })
+            .instrument(tracing::info_span!("endpoints"))
     });
 
     let ts_controller = ts_controller
         .shutdown_on_signal()
-        .run(
-            reconcile_ts,
-            error_policy,
-            Context::new(Data {
-                client,
-                ep_store: ep_store2,
-            }),
-        )
+        .run(reconcile_ts, error_policy, ctx)
         .for_each(|res| async move {
-            match res {
-                Ok(o) => tracing::info!("reconciled {:?}", o),
-                Err(error) => tracing::warn!(%error, "reconcile failed"),
+            if let Err(error) = res {
+                tracing::warn!(%error, "reconcile failed");
             }
         })
-        .instrument(tracing::info_span!("endpoints"));
+        .instrument(tracing::info_span!("trafficsplit"));
 
-    let eps_controller = tokio::spawn(eps_controller)
-        .unwrap_or_else(|error| panic!("Endpoints controller panicked: {}", error));
-    let ts_controller = tokio::spawn(ts_controller)
+    let ts = tokio::spawn(ts_controller)
         .unwrap_or_else(|error| panic!("TrafficSplit controller panicked: {}", error));
-
-    tokio::join!(ts_controller, eps_controller);
+    tokio::join!(ts);
 
     tracing::info!("controller terminated");
     Ok(())
+}
+
+impl Ctx {
+    fn traffic_split(&self) -> Option<Arc<TrafficSplit>> {
+        self.traffic_splits.get(&self.ts_ref)
+    }
+}
+
+async fn handle_endpoints(ev: Event<Endpoints>, ctx: &Context<Ctx>) {
+    // First, check if the traffic split even exists. If it doesn't, there's no point in
+    // dealing with the endpoint update.
+    let split = match ctx.get_ref().traffic_split() {
+        Some(s) => s,
+        None => return,
+    };
+
+    let needs_reconcile = match ev {
+        // On restart, we could potentially have missed a delete event, so always
+        // reconcile.
+        Event::Restarted(_) => true,
+
+        // If the endpoint updated is a backend for the traffic split, then we need to
+        // reconcile.
+        Event::Applied(ep) | Event::Deleted(ep) => {
+            split.spec.backends.iter().any(|b| b.service == ep.name())
+        }
+    };
+
+    if needs_reconcile {
+        if let Err(error) = reconcile_ts(split.clone(), ctx.clone()).await {
+            tracing::warn!(%error, "reconcile failed");
+        }
+    }
 }
