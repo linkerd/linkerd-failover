@@ -102,13 +102,7 @@ async fn reconcile_ts(
         backends.push(backend);
     }
 
-    patch_ts(
-        ctx.get_ref().client.clone(),
-        &namespace,
-        &ts.name(),
-        backends,
-    )
-    .await?;
+    patch_ts(ctx.get_ref(), backends).await?;
 
     Ok(ReconcilerAction {
         requeue_after: Some(Duration::from_secs(300)),
@@ -122,24 +116,26 @@ fn error_policy(error: &kube::Error, _ctx: Context<Ctx>) -> ReconcilerAction {
     }
 }
 
-async fn patch_ts(
-    client: Client,
-    ns: &str,
-    name: &str,
-    backends: Vec<Backend>,
-) -> Result<TrafficSplit, kube::Error> {
-    let ts_api: Api<TrafficSplit> = Api::namespaced(client, ns);
+async fn patch_ts(ctx: &Ctx, backends: Vec<Backend>) -> Result<TrafficSplit, kube::Error> {
+    let ns = ctx
+        .ts_ref
+        .namespace
+        .as_ref()
+        .expect("namespace must be set");
+    let ts_api = Api::<TrafficSplit>::namespaced(ctx.client.clone(), ns);
     let ssapply = PatchParams::apply("linkerd_failover_patch");
     let patch = serde_json::json!({
         "apiVersion": "split.smi-spec.io/v1alpha2",
         "kind": "TrafficSplit",
-        "name": name,
+        "name": &ctx.ts_ref.name,
         "spec": {
             "backends": backends
         }
     });
-    tracing::info!(?patch);
-    ts_api.patch(name, &ssapply, &Patch::Merge(patch)).await
+    tracing::debug!(?patch);
+    ts_api
+        .patch(&ctx.ts_ref.name, &ssapply, &Patch::Merge(patch))
+        .await
 }
 
 #[tokio::main]
