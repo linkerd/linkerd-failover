@@ -16,12 +16,8 @@ use kube::{
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use thiserror::Error;
 use tokio::time::Duration;
 use tracing::Instrument;
-
-#[derive(Debug, Error)]
-enum Error {}
 
 #[derive(CustomResource, Debug, Clone, Deserialize, Serialize, JsonSchema)]
 #[kube(
@@ -49,7 +45,10 @@ struct Ctx {
     ts_ref: ObjectRef<TrafficSplit>,
 }
 
-async fn reconcile_ts(ts: Arc<TrafficSplit>, ctx: Context<Ctx>) -> Result<ReconcilerAction, Error> {
+async fn reconcile_ts(
+    ts: Arc<TrafficSplit>,
+    ctx: Context<Ctx>,
+) -> Result<ReconcilerAction, kube::Error> {
     tracing::debug!(?ts, "reconciling traffic split");
 
     let namespace = ts.namespace().expect("trafficsplit must be namespaced");
@@ -109,15 +108,14 @@ async fn reconcile_ts(ts: Arc<TrafficSplit>, ctx: Context<Ctx>) -> Result<Reconc
         &ts.name(),
         backends,
     )
-    .await
-    .unwrap();
+    .await?;
 
     Ok(ReconcilerAction {
         requeue_after: Some(Duration::from_secs(300)),
     })
 }
 
-fn error_policy(error: &Error, _ctx: Context<Ctx>) -> ReconcilerAction {
+fn error_policy(error: &kube::Error, _ctx: Context<Ctx>) -> ReconcilerAction {
     tracing::error!(%error);
     ReconcilerAction {
         requeue_after: Some(Duration::from_secs(1)),
