@@ -86,7 +86,7 @@ helm install linkerd-failover -n linkerd-failover --create-namespace --devel lin
 ### Running locally for testing
 
 ```console
-TS_NAMESPACE=xxx TS_NAME=xxx SVC_PRIMARY=xxx cargo run
+cargo run -- --namespace=<NS> --traffic-split=<TS> --primary-service=<SVC>
 ```
 
 ## Example
