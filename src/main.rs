@@ -9,13 +9,9 @@ use kube::{
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use thiserror::Error;
 use tokio::sync::Mutex;
 use tokio::time::Duration;
 use tracing::Instrument;
-
-#[derive(Debug, Error)]
-enum Error {}
 
 #[derive(CustomResource, Debug, Clone, Deserialize, Serialize, JsonSchema)]
 #[kube(
@@ -51,30 +47,28 @@ struct Data {
 async fn reconcile_ts(
     ts: Arc<TrafficSplit>,
     ctx: Context<Data>,
-) -> Result<ReconcilerAction, Error> {
+) -> Result<ReconcilerAction, kube::Error> {
     tracing::debug!(?ts, "traffic split update");
 
     let data = ctx.get_ref();
     let mut ts_state = data.ts.lock().await;
     ts_state.backends = ts.spec.backends.clone();
-    sync_eps(
-        &ts.namespace().unwrap(),
-        ts_state.backends.to_vec(),
-        ctx.get_ref(),
-    )
-    .await;
+    sync_eps(ts_state.backends.to_vec(), ctx.get_ref()).await?;
     Ok(ReconcilerAction {
         requeue_after: Some(Duration::from_secs(300)),
     })
 }
 
-async fn reconcile_ep(ep: Arc<Endpoints>, ctx: Context<Data>) -> Result<ReconcilerAction, Error> {
+async fn reconcile_ep(
+    ep: Arc<Endpoints>,
+    ctx: Context<Data>,
+) -> Result<ReconcilerAction, kube::Error> {
     tracing::debug!(?ep, "endpoint update");
 
     let data = ctx.get_ref();
     let mut ts_state = data.ts.lock().await;
 
-    sync_eps(&ep.namespace().unwrap(), ts_state.backends.to_vec(), data).await;
+    sync_eps(ts_state.backends.to_vec(), data).await?;
 
     let eps_state = data.ep_list.lock().await;
 
@@ -110,34 +104,29 @@ async fn reconcile_ep(ep: Arc<Endpoints>, ctx: Context<Data>) -> Result<Reconcil
         &data.ts_name,
         ts_state.backends.to_vec(),
     )
-    .await
-    .unwrap();
+    .await?;
 
     Ok(ReconcilerAction {
         requeue_after: Some(Duration::from_secs(300)),
     })
 }
 
-async fn sync_eps(ns: &str, backends: Vec<Backend>, data: &Data) {
-    let ep_api: Api<Endpoints> = Api::namespaced(data.client.clone(), ns);
+async fn sync_eps(backends: Vec<Backend>, data: &Data) -> Result<(), kube::Error> {
+    let ep_api: Api<Endpoints> = Api::namespaced(data.client.clone(), &data.ts_ns);
     let mut eps: Vec<Endpoints> = vec![];
     for backend in backends {
-        let name = backend.service;
-        let ep = ep_api
-            .list(&ListParams::default().fields(&format!("metadata.name={}", name)))
-            .await
-            .unwrap()
-            .into_iter()
-            .next()
-            .unwrap();
-        eps.push(ep.clone());
+        let params = ListParams::default().fields(&format!("metadata.name={}", backend.service));
+        if let Some(ep) = ep_api.list(&params).await?.into_iter().next() {
+            eps.push(ep.clone());
+        }
     }
 
     let mut ep_list = data.ep_list.lock().await;
     ep_list.ep = eps;
+    Ok(())
 }
 
-fn error_policy(error: &Error, _ctx: Context<Data>) -> ReconcilerAction {
+fn error_policy(error: &kube::Error, _ctx: Context<Data>) -> ReconcilerAction {
     tracing::error!(%error);
     ReconcilerAction {
         requeue_after: Some(Duration::from_secs(1)),
