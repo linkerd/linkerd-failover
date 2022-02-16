@@ -1,14 +1,14 @@
 name: deny
 
- on:
-   pull_request:
-     paths:
-       - Cargo.lock
-       - deny.toml
-       - .github/workflows/deny.yml
+on:
+  pull_request:
+    paths:
+      - Cargo.lock
+      - deny.toml
+      - .github/workflows/deny.yml
 
- permissions:
-   contents: read
+permissions:
+  contents: read
 
 env:
   CARGO_INCREMENTAL: 0
