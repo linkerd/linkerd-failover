@@ -239,21 +239,22 @@ async fn handle_endpoints(ev: Event<Endpoints>, ctx: &Context<Ctx>) {
         None => return,
     };
 
-    let needs_reconcile = match ev {
+    match ev {
         // On restart, we could potentially have missed a delete event, so always
         // reconcile.
-        Event::Restarted(_) => true,
+        Event::Restarted(_) => {}
 
         // If the endpoint updated is a backend for the traffic split, then we need to
         // reconcile.
         Event::Applied(ep) | Event::Deleted(ep) => {
-            split.spec.backends.iter().any(|b| b.service == ep.name())
+            if !split.spec.backends.iter().any(|b| b.service == ep.name()) {
+                // No reconcile needed.
+                return;
+            }
         }
-    };
+    }
 
-    if needs_reconcile {
-        if let Err(error) = reconcile_ts(split.clone(), ctx.clone()).await {
-            tracing::warn!(%error, "reconcile failed");
-        }
+    if let Err(error) = reconcile_ts(split.clone(), ctx.clone()).await {
+        tracing::warn!(%error, "reconcile failed");
     }
 }
