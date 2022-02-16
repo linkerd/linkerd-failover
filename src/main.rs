@@ -66,39 +66,33 @@ async fn reconcile_ts(
         }
     };
 
-    let failover = match ctx
+    let primary_active = ctx
         .get_ref()
         .endpoints
         .get(&ObjectRef::new(svc_primary).within(&namespace))
-    {
-        Some(ep) => ep.subsets.is_none(),
-        None => true,
-    };
+        .map(|ep| ep.subsets.is_some())
+        .unwrap_or(false);
 
     let mut backends = vec![];
     for backend in &ts.spec.backends {
-        let mut backend = backend.clone();
-        if &backend.service == svc_primary {
-            if failover {
-                backend.weight = 0;
-            } else {
-                backend.weight = 1;
-            }
+        // Determine if this backend should be active.
+        let active = if &backend.service == svc_primary {
+            // If this service the primary, then use the prior check to determine whether it's active
+            primary_active
         } else {
-            let empty = match ctx
-                .get_ref()
-                .endpoints
-                .get(&ObjectRef::new(&backend.service).within(&namespace))
-            {
-                Some(ep) => ep.subsets.is_none(),
-                None => true,
-            };
-            if failover && !empty {
-                backend.weight = 1;
-            } else {
-                backend.weight = 0;
-            }
-        }
+            // Otherwise, if the primary is not active, then check the secondary service's state to
+            // determine whether it should be active
+            !primary_active
+                && ctx
+                    .get_ref()
+                    .endpoints
+                    .get(&ObjectRef::new(&backend.service).within(&namespace))
+                    .map(|ep| ep.subsets.is_some())
+                    .unwrap_or(false)
+        };
+
+        let mut backend = backend.clone();
+        backend.weight = if active { 1 } else { 0 };
         backends.push(backend);
     }
 
