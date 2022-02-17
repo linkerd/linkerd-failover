@@ -85,8 +85,7 @@ async fn reconcile_ts(
         .get_ref()
         .endpoints
         .get(&ObjectRef::new(svc_primary).within(&namespace))
-        .map(|ep| ep.subsets.is_some())
-        .unwrap_or(false);
+        .map_or(false, |ep| ep.subsets.is_some());
 
     let mut backends = vec![];
     for backend in &ts.spec.backends {
@@ -102,8 +101,7 @@ async fn reconcile_ts(
                     .get_ref()
                     .endpoints
                     .get(&ObjectRef::new(&backend.service).within(&namespace))
-                    .map(|ep| ep.subsets.is_some())
-                    .unwrap_or(false)
+                    .map_or(false, |ep| ep.subsets.is_some())
         };
 
         let mut backend = backend.clone();
@@ -216,9 +214,9 @@ async fn main() -> Result<()> {
         })
         .instrument(tracing::info_span!("trafficsplit"));
 
-    let ts = tokio::spawn(ts_controller)
-        .unwrap_or_else(|error| panic!("TrafficSplit controller panicked: {}", error));
-    tokio::join!(ts);
+    tokio::spawn(ts_controller)
+        .unwrap_or_else(|error| panic!("TrafficSplit controller panicked: {}", error))
+        .await;
 
     tracing::info!("controller terminated");
     Ok(())
@@ -238,18 +236,15 @@ async fn handle_endpoints(ev: Event<Endpoints>, ctx: &Context<Ctx>) {
         None => return,
     };
 
-    match ev {
-        // On restart, we could potentially have missed a delete event, so always
-        // reconcile.
-        Event::Restarted(_) => {}
-
+    if let Event::Applied(ep) | Event::Deleted(ep) = ev {
         // If the endpoint updated is a backend for the traffic split, then we need to
         // reconcile.
-        Event::Applied(ep) | Event::Deleted(ep) => {
-            if !split.spec.backends.iter().any(|b| b.service == ep.name()) {
-                // No reconcile needed.
-                return;
-            }
+
+        // On restart, we could potentially have missed a delete event, so always
+        // reconcile.
+        if !split.spec.backends.iter().any(|b| b.service == ep.name()) {
+            // No reconcile needed.
+            return;
         }
     }
 
