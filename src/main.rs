@@ -1,4 +1,5 @@
 use anyhow::Result;
+use clap::Parser;
 use futures::{future::TryFutureExt, stream::StreamExt};
 use k8s_openapi::api::core::v1::Endpoints;
 use kube::{
@@ -12,6 +13,23 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 use tokio::time::Duration;
 use tracing::Instrument;
+use tracing_subscriber::{prelude::*, EnvFilter};
+
+#[derive(Parser)]
+#[clap(version)]
+struct Args {
+    #[clap(long, env = "RUST_LOG", default_value = "linkerd=info,warn")]
+    log_level: EnvFilter,
+
+    #[clap(long, default_value = "default")]
+    namespace: String,
+
+    #[clap(long)]
+    primary_service: String,
+
+    #[clap(long)]
+    traffic_split: String,
+}
 
 #[derive(CustomResource, Debug, Clone, Deserialize, Serialize, JsonSchema)]
 #[kube(
@@ -155,36 +173,31 @@ async fn patch_ts(
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    use std::env;
-    use tracing_subscriber::{prelude::*, EnvFilter};
+    let Args {
+        log_level,
+        namespace,
+        traffic_split,
+        primary_service,
+    } = Args::parse();
 
-    let log_filter = env::var("RUST_LOG")
-        .unwrap_or_else(|_| String::from("info,kube-runtime=debug,kube=debug"))
-        .parse::<EnvFilter>()?;
     tracing_subscriber::registry()
         .with(tracing_subscriber::fmt::layer())
-        .with(log_filter)
+        .with(log_level)
         .init();
 
-    let ts_namespace =
-        env::var("TS_NAMESPACE").expect("the TS_NAMESPACE environment variable is required");
-    let ts_name = env::var("TS_NAME").expect("the TS_NAME environment variable is required");
-    let svc_primary =
-        env::var("SVC_PRIMARY").expect("the SVC_PRIMARY environment variable is required");
-
     tracing::info!(
-        "watching TrafficSplit \"{}\" and Endpoints over the namespace \"{}\"",
-        &ts_name,
-        &ts_namespace
+        %namespace,
+        %traffic_split,
+        "watching TrafficSplit and Endpoints",
     );
 
     let client = Client::try_default().await?;
-    let params = ListParams::default().fields(&format!("metadata.name={}", ts_name));
+    let params = ListParams::default().fields(&format!("metadata.name={}", traffic_split));
 
     let ts_state = Arc::new(Mutex::new(TrafficSplitSpec { backends: vec![] }));
     let ep_list = Arc::new(Mutex::new(EndpointsList { ep: vec![] }));
 
-    let ts_api = Api::<TrafficSplit>::namespaced(client.clone(), &ts_namespace);
+    let ts_api = Api::<TrafficSplit>::namespaced(client.clone(), &namespace);
     let ts_controller = Controller::new(ts_api, params)
         .shutdown_on_signal()
         .run(
@@ -192,9 +205,9 @@ async fn main() -> Result<()> {
             error_policy,
             Context::new(Data {
                 client: client.clone(),
-                ts_name: ts_name.clone(),
-                ts_ns: ts_namespace.clone(),
-                svc_primary: svc_primary.clone(),
+                ts_name: traffic_split.clone(),
+                ts_ns: namespace.clone(),
+                svc_primary: primary_service.clone(),
                 ts: ts_state.clone(),
                 ep_list: ep_list.clone(),
             }),
@@ -209,7 +222,7 @@ async fn main() -> Result<()> {
     let ts_controller = tokio::spawn(ts_controller)
         .unwrap_or_else(|error| panic!("TrafficSplit controller panicked: {}", error));
 
-    let eps_api = Api::<Endpoints>::namespaced(client.clone(), &ts_namespace);
+    let eps_api = Api::<Endpoints>::namespaced(client.clone(), &namespace);
     let eps_controller = Controller::new(eps_api, ListParams::default())
         .shutdown_on_signal()
         .run(
@@ -217,9 +230,9 @@ async fn main() -> Result<()> {
             error_policy,
             Context::new(Data {
                 client: client.clone(),
-                ts_name: ts_name.clone(),
-                ts_ns: ts_namespace.clone(),
-                svc_primary: svc_primary.clone(),
+                ts_name: traffic_split.clone(),
+                ts_ns: namespace.clone(),
+                svc_primary: primary_service.clone(),
                 ts: Arc::clone(&ts_state),
                 ep_list: Arc::clone(&ep_list),
             }),
