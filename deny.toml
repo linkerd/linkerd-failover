@@ -37,6 +37,7 @@ skip = [
     # Waiting on kube v0.70
     { name = "parking_lot", version = "0.11" },
     { name = "parking_lot_core", version = "0.8" },
+    { name = "tokio-util", version = "0.6" },
 ]
 
 [sources]
