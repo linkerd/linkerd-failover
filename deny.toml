@@ -29,12 +29,16 @@ exceptions = []
 
 [bans]
 multiple-versions = "deny"
-# Wildcard dependencies are used for all workspace-local crates.
-wildcards = "allow"
+wildcards = "deny"
 highlight = "all"
 deny = []
 skip-tree = []
-skip = []
+skip = [
+    # Waiting on kube v0.70
+    { name = "parking_lot", version = "0.11" },
+    { name = "parking_lot_core", version = "0.8" },
+    { name = "tokio-util", version = "0.6" },
+]
 
 [sources]
 unknown-registry = "deny"
