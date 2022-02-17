@@ -1,4 +1,5 @@
 use anyhow::Result;
+use clap::Parser;
 use futures::{future::TryFutureExt, stream::StreamExt};
 use k8s_openapi::api::core::v1::Endpoints;
 use kube::{
@@ -18,6 +19,20 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::time::Duration;
 use tracing::Instrument;
+use tracing_subscriber::{prelude::*, EnvFilter};
+
+#[derive(Parser)]
+#[clap(version)]
+struct Args {
+    #[clap(long, env = "RUST_LOG", default_value = "linkerd=info,warn")]
+    log_level: EnvFilter,
+
+    #[clap(long, default_value = "default")]
+    namespace: String,
+
+    #[clap(long)]
+    traffic_split: String,
+}
 
 #[derive(CustomResource, Debug, Clone, Deserialize, Serialize, JsonSchema)]
 #[kube(
@@ -134,32 +149,28 @@ async fn patch_ts(ctx: &Ctx, backends: Vec<Backend>) -> Result<TrafficSplit, kub
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    use std::env;
-    use tracing_subscriber::{prelude::*, EnvFilter};
+    let Args {
+        log_level,
+        namespace,
+        traffic_split,
+    } = Args::parse();
 
-    let log_filter = env::var("RUST_LOG")
-        .unwrap_or_else(|_| String::from("info,kube-runtime=debug,kube=debug"))
-        .parse::<EnvFilter>()?;
     tracing_subscriber::registry()
         .with(tracing_subscriber::fmt::layer())
-        .with(log_filter)
+        .with(log_level)
         .init();
 
-    let ts_namespace =
-        env::var("TS_NAMESPACE").expect("the TS_NAMESPACE environment variable is required");
-    let ts_name = env::var("TS_NAME").expect("the TS_NAME environment variable is required");
-
     tracing::info!(
-        "watching TrafficSplit \"{}\" and Endpoints over the namespace \"{}\"",
-        &ts_name,
-        &ts_namespace
+        %namespace,
+        %traffic_split,
+        "watching TrafficSplit and Endpoints",
     );
 
     let client = Client::try_default().await?;
 
     let ts_controller = {
-        let api = Api::<TrafficSplit>::namespaced(client.clone(), &ts_namespace);
-        let params = ListParams::default().fields(&format!("metadata.name={}", ts_name));
+        let api = Api::<TrafficSplit>::namespaced(client.clone(), &namespace);
+        let params = ListParams::default().fields(&format!("metadata.name={}", traffic_split));
         Controller::new(api, params)
     };
 
@@ -169,11 +180,11 @@ async fn main() -> Result<()> {
         client: client.clone(),
         endpoints: endpoints.as_reader(),
         traffic_splits: ts_controller.store(),
-        ts_ref: ObjectRef::new(&ts_name).within(&ts_namespace),
+        ts_ref: ObjectRef::new(&traffic_split).within(&namespace),
     });
 
     tokio::spawn({
-        let api = Api::<Endpoints>::namespaced(client.clone(), &ts_namespace);
+        let api = Api::<Endpoints>::namespaced(client.clone(), &namespace);
         let reflector = kube::runtime::reflector(
             endpoints,
             kube::runtime::watcher(api, ListParams::default()),

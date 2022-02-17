@@ -34,10 +34,7 @@ wildcards = "allow"
 highlight = "all"
 deny = []
 skip-tree = []
-skip = [
-    # Waiting on a release that updates itoa to v1.
-    { name = "itoa", version = "0.4" },
-]
+skip = []
 
 [sources]
 unknown-registry = "deny"
