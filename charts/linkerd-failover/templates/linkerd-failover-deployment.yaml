@@ -31,4 +31,3 @@ spec:
           args:
             - --namespace={{ .Values.trafficSplit.namespace }}
             - --traffic-split={{ .Values.trafficSplit.name }}
-            - --primary-service={{ .Values.trafficSplit.primaryService }}

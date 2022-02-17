@@ -14,5 +14,3 @@ trafficSplit:
   namespace:
   # -- Name for the TS to watch
   name:
-  # -- Primary service out of the backends list in the TS
-  primaryService:
