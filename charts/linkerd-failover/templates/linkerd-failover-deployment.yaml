@@ -19,7 +19,6 @@ spec:
     metadata:
       annotations:
         checksum/config: {{ include (print $.Template.BasePath "/linkerd-failover-rbac.yaml") . | sha256sum }}
-        {{- end }}
         linkerd.io/inject: enabled
       labels:
         linkerd.io/extension: failover
@@ -29,5 +28,4 @@ spec:
         - image: {{.Values.image.registry }}/{{.Values.image.name}}:{{.Values.image.tag }}
           name: linkerd-failover
           args:
-            - --namespace={{ .Values.trafficSplit.namespace }}
-            - --traffic-split={{ .Values.trafficSplit.name }}
+            - --selector={{ .Values.labelSelector | quote }}

@@ -4,13 +4,5 @@ image:
   name: linkerd-failover
   tag: latest
 
-# -- Determines which `TrafficSplit` instances to consider for failover. Not
-# implemented yet.
-labelSelector:
-  managed-by: linkerd-failover
-
-trafficSplit:
-  # -- Namespace for the TS to watch
-  namespace:
-  # -- Name for the TS to watch
-  name:
+# -- Determines which `TrafficSplit` instances to consider for failover
+labelSelector: "managed-by=linkerd-failover"
