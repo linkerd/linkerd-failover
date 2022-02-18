@@ -27,7 +27,11 @@ struct Args {
     #[clap(long, env = "RUST_LOG", default_value = "linkerd=info,warn")]
     log_level: EnvFilter,
 
-    #[clap(long = "selector", default_value = "managed-by=linkerd-failover", short = 'l')]
+    #[clap(
+        long = "selector",
+        default_value = "managed-by=linkerd-failover",
+        short = 'l'
+    )]
     label_selector: String,
 }
 
@@ -143,7 +147,10 @@ async fn patch_ts(
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let Args { log_level, label_selector } = Args::parse();
+    let Args {
+        log_level,
+        label_selector,
+    } = Args::parse();
 
     tracing_subscriber::registry()
         .with(tracing_subscriber::fmt::layer())
