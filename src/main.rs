@@ -16,8 +16,7 @@ use kube::{
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
-use tokio::time::Duration;
+use std::{sync::Arc, time::Duration};
 use tracing::Instrument;
 use tracing_subscriber::{prelude::*, EnvFilter};
 
