@@ -217,15 +217,22 @@ async fn main() -> Result<()> {
 }
 
 async fn handle_endpoints(ev: Event<Endpoints>, ctx: &Context<Ctx>) {
-    let eps = match ev {
-        Event::Applied(ep) => vec![ep],
-        Event::Deleted(ep) => vec![ep],
-        Event::Restarted(eps) => eps,
-    };
+    match ev {
+        Event::Applied(ep) | Event::Deleted(ep) => {
+            for ts in ctx.get_ref().traffic_splits.state() {
+                if ts.namespace() == ep.namespace()
+                    && ts.spec.backends.iter().any(|b| b.service == ep.name())
+                {
+                    if let Err(error) = reconcile_ts(ts, ctx.clone()).await {
+                        tracing::warn!(%error, "reconcile failed");
+                    }
+                }
+            }
+        }
 
-    for ep in eps {
-        for ts in ctx.get_ref().traffic_splits.state() {
-            if ts.spec.backends.iter().any(|b| b.service == ep.name()) {
+        Event::Restarted(_) => {
+            // On restart, reconcile all known traffic splits.
+            for ts in ctx.get_ref().traffic_splits.state() {
                 if let Err(error) = reconcile_ts(ts, ctx.clone()).await {
                     tracing::warn!(%error, "reconcile failed");
                 }
