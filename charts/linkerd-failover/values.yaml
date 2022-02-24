@@ -5,4 +5,4 @@ image:
   tag: latest
 
 # -- Determines which `TrafficSplit` instances to consider for failover
-labelSelector: "managed-by=linkerd-failover"
+labelSelector: "app.kubernetes.io/managed-by=linkerd-failover"
