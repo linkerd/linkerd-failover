@@ -1,22 +1,19 @@
+#![deny(warnings, rust_2018_idioms)]
+#![forbid(unsafe_code)]
+
 use anyhow::Result;
 use clap::Parser;
 use futures::{future::TryFutureExt, stream::StreamExt};
 use k8s_openapi::api::core::v1::Endpoints;
 use kube::{
-    api::{Api, ListParams, Patch, PatchParams},
+    api::{Api, ListParams},
     runtime::{
-        controller::{Context, Controller, ReconcilerAction},
-        reflector::{
-            store::{Store, Writer},
-            ObjectRef,
-        },
-        watcher::Event,
+        controller::{Context, Controller},
+        reflector::store::Writer,
     },
-    Client, CustomResource, ResourceExt,
+    Client,
 };
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
-use std::{sync::Arc, time::Duration};
+use linkerd_failover::*;
 use tracing::Instrument;
 use tracing_subscriber::{prelude::*, EnvFilter};
 
@@ -32,116 +29,6 @@ struct Args {
         short = 'l'
     )]
     label_selector: String,
-}
-
-#[derive(CustomResource, Debug, Clone, Deserialize, Serialize, JsonSchema)]
-#[kube(
-    group = "split.smi-spec.io",
-    version = "v1alpha2",
-    kind = "TrafficSplit",
-    shortname = "ts",
-    namespaced
-)]
-struct TrafficSplitSpec {
-    backends: Vec<Backend>,
-}
-
-#[derive(Serialize, Deserialize, Debug, JsonSchema, Clone)]
-struct Backend {
-    service: String,
-    weight: u32,
-}
-
-#[derive(Clone)]
-struct Ctx {
-    client: Client,
-    endpoints: Store<Endpoints>,
-    traffic_splits: Store<TrafficSplit>,
-}
-
-async fn reconcile_ts(
-    ts: Arc<TrafficSplit>,
-    ctx: Context<Ctx>,
-) -> Result<ReconcilerAction, kube::Error> {
-    tracing::debug!(?ts, "reconciling traffic split");
-
-    let namespace = ts.namespace().expect("trafficsplit must be namespaced");
-    let svc_primary = match ts.annotations().get("failover.linkerd.io/primary-service") {
-        Some(name) => name,
-        None => {
-            tracing::info!(
-                %namespace,
-                name = %ts.name(),
-                "trafficsplit is missing the `failover.linkerd.io/primary-service` annotation; skipping"
-            );
-            return Ok(ReconcilerAction {
-                requeue_after: None,
-            });
-        }
-    };
-
-    let primary_active = ctx
-        .get_ref()
-        .endpoints
-        .get(&ObjectRef::new(svc_primary).within(&namespace))
-        .map_or(false, |ep| ep.subsets.is_some());
-
-    let mut backends = vec![];
-    for backend in &ts.spec.backends {
-        // Determine if this backend should be active.
-        let active = if &backend.service == svc_primary {
-            // If this service the primary, then use the prior check to determine whether it's active
-            primary_active
-        } else {
-            // Otherwise, if the primary is not active, then check the secondary service's state to
-            // determine whether it should be active
-            !primary_active
-                && ctx
-                    .get_ref()
-                    .endpoints
-                    .get(&ObjectRef::new(&backend.service).within(&namespace))
-                    .map_or(false, |ep| ep.subsets.is_some())
-        };
-
-        let mut backend = backend.clone();
-        backend.weight = if active { 1 } else { 0 };
-        backends.push(backend);
-    }
-
-    patch_ts(ctx.get_ref(), ObjectRef::from_obj(&ts), backends).await?;
-
-    Ok(ReconcilerAction {
-        requeue_after: Some(Duration::from_secs(300)),
-    })
-}
-
-fn error_policy(error: &kube::Error, _ctx: Context<Ctx>) -> ReconcilerAction {
-    tracing::error!(%error);
-    ReconcilerAction {
-        requeue_after: Some(Duration::from_secs(1)),
-    }
-}
-
-async fn patch_ts(
-    ctx: &Ctx,
-    ts_ref: ObjectRef<TrafficSplit>,
-    backends: Vec<Backend>,
-) -> Result<TrafficSplit, kube::Error> {
-    let ns = ts_ref.namespace.as_ref().expect("namespace must be set");
-    let ts_api = Api::<TrafficSplit>::namespaced(ctx.client.clone(), ns);
-    let ssapply = PatchParams::apply("linkerd_failover_patch");
-    let patch = serde_json::json!({
-        "apiVersion": "split.smi-spec.io/v1alpha2",
-        "kind": "TrafficSplit",
-        "name": ts_ref.name,
-        "spec": {
-            "backends": backends
-        }
-    });
-    tracing::debug!(?patch);
-    ts_api
-        .patch(&ts_ref.name, &ssapply, &Patch::Merge(patch))
-        .await
 }
 
 #[tokio::main]
@@ -199,7 +86,7 @@ async fn main() -> Result<()> {
 
     let ts_controller = ts_controller
         .shutdown_on_signal()
-        .run(reconcile_ts, error_policy, ctx)
+        .run(traffic_split::reconcile, error_policy, ctx)
         .for_each(|res| async move {
             if let Err(error) = res {
                 tracing::warn!(%error, "reconcile failed");
@@ -213,29 +100,4 @@ async fn main() -> Result<()> {
 
     tracing::info!("controller terminated");
     Ok(())
-}
-
-async fn handle_endpoints(ev: Event<Endpoints>, ctx: &Context<Ctx>) {
-    match ev {
-        Event::Applied(ep) | Event::Deleted(ep) => {
-            for ts in ctx.get_ref().traffic_splits.state() {
-                if ts.namespace() == ep.namespace()
-                    && ts.spec.backends.iter().any(|b| b.service == ep.name())
-                {
-                    if let Err(error) = reconcile_ts(ts, ctx.clone()).await {
-                        tracing::warn!(%error, "reconcile failed");
-                    }
-                }
-            }
-        }
-
-        Event::Restarted(_) => {
-            // On restart, reconcile all known traffic splits.
-            for ts in ctx.get_ref().traffic_splits.state() {
-                if let Err(error) = reconcile_ts(ts, ctx.clone()).await {
-                    tracing::warn!(%error, "reconcile failed");
-                }
-            }
-        }
-    }
 }
