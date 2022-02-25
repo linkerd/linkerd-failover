@@ -58,10 +58,7 @@ CRD, it is required to install the `linkerd-smi` extension.
 The following Helm values are available:
 
 - `labelSelector`: determines which `TrafficSplit` instances to consider for
-  failover. It defaults to `managed-by=linkerd-failover`. This is currently not
-  implemented, so you must fallback to the next settings.
-- `trafficSplit.namespace` and `trafficSplit.name`: namespace and name of the
-  `TrafficSplit` resource to watch.
+  failover. It defaults to `app.kubernetes.io/managed-by=linkerd-failover`.
 
 ## Installation
 
@@ -81,7 +78,7 @@ helm install linkerd-failover -n linkerd-failover --create-namespace --devel lin
 ### Running locally for testing
 
 ```console
-cargo run -- --namespace=<NS> --traffic-split=<TS>
+cargo run
 ```
 
 ## Example
