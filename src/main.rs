@@ -1,30 +1,34 @@
 #![deny(warnings, rust_2018_idioms)]
 #![forbid(unsafe_code)]
 
-use anyhow::Result;
+use anyhow::{bail, Result};
 use clap::Parser;
-use futures::{future::TryFutureExt, stream::StreamExt};
-use k8s_openapi::api::core::v1::Endpoints;
-use kube::{
-    api::{Api, ListParams},
-    runtime::{
-        controller::{Context, Controller},
-        reflector::store::Writer,
-    },
-    Client,
-};
-use linkerd_failover::*;
+use futures::prelude::*;
+use kube::api::ListParams;
+use linkerd_failover::{handle_endpoints, traffic_split, Ctx};
 use tracing::Instrument;
-use tracing_subscriber::{prelude::*, EnvFilter};
 
 #[derive(Parser)]
 #[clap(version)]
 struct Args {
-    #[clap(long, env = "RUST_LOG", default_value = "linkerd=info,warn")]
-    log_level: EnvFilter,
+    #[clap(
+        long,
+        env = "LINKERD_FAILOVER_LOG_LEVEL",
+        default_value = "linkerd=info,warn"
+    )]
+    log_level: kubert::LogFilter,
+
+    #[clap(long, default_value = "plain")]
+    log_format: kubert::LogFormat,
+
+    #[clap(flatten)]
+    client: kubert::ClientArgs,
+
+    #[clap(flatten)]
+    admin: kubert::AdminArgs,
 
     #[clap(
-        long = "selector",
+        long,
         default_value = "app.kubernetes.io/managed-by=linkerd-failover",
         short = 'l'
     )]
@@ -35,69 +39,54 @@ struct Args {
 async fn main() -> Result<()> {
     let Args {
         log_level,
+        log_format,
+        client,
+        admin,
         label_selector,
     } = Args::parse();
 
-    tracing_subscriber::registry()
-        .with(tracing_subscriber::fmt::layer())
-        .with(log_level)
-        .init();
+    let mut runtime = kubert::Runtime::builder()
+        .with_log(log_level, log_format)
+        .with_admin(admin)
+        .with_client(client)
+        .build()
+        .await?;
 
     tracing::info!("watching TrafficSplit and Endpoints",);
 
-    let client = Client::try_default().await?;
-
-    let ts_controller = {
-        let api = Api::<TrafficSplit>::all(client.clone());
-        let params = ListParams::default().labels(&label_selector);
-        Controller::new(api, params)
+    let (endpoints, endpoints_events) = runtime.cache_all(ListParams::default());
+    let (traffic_splits, traffic_splits_events) =
+        runtime.cache_all(ListParams::default().labels(&label_selector));
+    let ctx = Ctx {
+        client: runtime.client(),
+        endpoints,
+        traffic_splits,
     };
 
-    let endpoints = Writer::<Endpoints>::new(());
-
-    let ctx = Context::new(Ctx {
-        client: client.clone(),
-        endpoints: endpoints.as_reader(),
-        traffic_splits: ts_controller.store(),
-    });
-
-    tokio::spawn({
-        let api = Api::<Endpoints>::all(client.clone());
-        let reflector = kube::runtime::reflector(
-            endpoints,
-            kube::runtime::watcher(api, ListParams::default()),
-        );
-
-        reflector
+    tokio::spawn(
+        endpoints_events
             .fold(ctx.clone(), |ctx, ev| async move {
-                match ev {
-                    Ok(ev) => handle_endpoints(ev, &ctx).await,
-                    Err(error) => {
-                        // XXX Are we sure that the reconnect will happen gracefully? Do we need to deal
-                        // with backoff here? Are we going to hit this regularly? (If so, it should be
-                        // debug).
-                        tracing::warn!(%error, "endpoints watch failed");
-                    }
-                }
+                handle_endpoints(ev, &ctx).await;
                 ctx
             })
-            .instrument(tracing::info_span!("endpoints"))
-    });
+            .instrument(tracing::info_span!("endpoints")),
+    );
 
-    let ts_controller = ts_controller
-        .shutdown_on_signal()
-        .run(traffic_split::reconcile, error_policy, ctx)
-        .for_each(|res| async move {
-            if let Err(error) = res {
-                tracing::warn!(%error, "reconcile failed");
-            }
-        })
-        .instrument(tracing::info_span!("trafficsplit"));
+    // Run the TrafficSplit controller
+    tokio::spawn(
+        traffic_splits_events
+            .fold(ctx.clone(), |ctx, ev| async move {
+                traffic_split::handle(ev, &ctx).await;
+                ctx
+            })
+            .instrument(tracing::info_span!("trafficsplit")),
+    );
 
-    tokio::spawn(ts_controller)
-        .unwrap_or_else(|error| panic!("TrafficSplit controller panicked: {}", error))
-        .await;
+    // Block the main thread on the shutdown signal. Once it fires, wait for the background tasks to
+    // complete before exiting.
+    if runtime.run().await.is_err() {
+        bail!("aborted");
+    }
 
-    tracing::info!("controller terminated");
     Ok(())
 }
