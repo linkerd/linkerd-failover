@@ -3,9 +3,9 @@
 
 use anyhow::{bail, Result};
 use clap::Parser;
-use futures::prelude::*;
 use kube::api::ListParams;
-use linkerd_failover::{handle_endpoints, traffic_split, Ctx};
+use linkerd_failover::{endpoints, traffic_split, Ctx};
+use tokio::sync::mpsc;
 use tracing::Instrument;
 
 #[derive(Parser)]
@@ -52,34 +52,33 @@ async fn main() -> Result<()> {
         .build()
         .await?;
 
-    tracing::info!("watching TrafficSplit and Endpoints",);
-
     let (endpoints, endpoints_events) = runtime.cache_all(ListParams::default());
     let (traffic_splits, traffic_splits_events) =
         runtime.cache_all(ListParams::default().labels(&label_selector));
+    let (patches_tx, patches_rx) = mpsc::channel(1000);
     let ctx = Ctx {
-        client: runtime.client(),
         endpoints,
         traffic_splits,
+        patches: patches_tx,
     };
 
     tokio::spawn(
-        endpoints_events
-            .fold(ctx.clone(), |ctx, ev| async move {
-                handle_endpoints(ev, &ctx).await;
-                ctx
-            })
+        ctx.clone()
+            .process(endpoints_events, endpoints::handle)
+            .instrument(tracing::info_span!("endpoints")),
+    );
+    tokio::spawn(
+        ctx.process(traffic_splits_events, traffic_split::handle)
             .instrument(tracing::info_span!("endpoints")),
     );
 
-    // Run the TrafficSplit controller
+    // Spawn a task that applies TrafficSplit patches when either of the above watches detect
+    // changes. This helps to ensure to prevent conflicting patches by serializing all updates on a
+    // single task.
     tokio::spawn(
-        traffic_splits_events
-            .fold(ctx.clone(), |ctx, ev| async move {
-                traffic_split::handle(ev, &ctx).await;
-                ctx
-            })
-            .instrument(tracing::info_span!("trafficsplit")),
+        runtime
+            .cancel_on_shutdown(traffic_split::apply_patches(patches_rx, runtime.client()))
+            .instrument(tracing::info_span!("patch")),
     );
 
     // Block the main thread on the shutdown signal. Once it fires, wait for the background tasks to
