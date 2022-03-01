@@ -1,4 +1,5 @@
 use super::{traffic_split, Ctx};
+use futures::prelude::*;
 use kube::{
     runtime::{reflector::ObjectRef, watcher::Event},
     ResourceExt,
@@ -6,7 +7,17 @@ use kube::{
 
 pub use k8s_openapi::api::core::v1::Endpoints;
 
-pub fn handle(ev: Event<Endpoints>, ctx: &Ctx) {
+pub async fn process<S>(events: S, ctx: Ctx)
+where
+    S: Stream<Item = Event<Endpoints>>,
+{
+    tokio::pin!(events);
+    while let Some(ev) = events.next().await {
+        handle(ev, &ctx).await;
+    }
+}
+
+pub(super) async fn handle(ev: Event<Endpoints>, ctx: &Ctx) {
     match ev {
         Event::Applied(ep) | Event::Deleted(ep) => {
             for ts in ctx.traffic_splits.state() {
@@ -17,7 +28,7 @@ pub fn handle(ev: Event<Endpoints>, ctx: &Ctx) {
                         endpoints = %ep.name(),
                         "updating traffic split for endpoints",
                     );
-                    traffic_split::update(ObjectRef::from_obj(&*ts), ctx);
+                    traffic_split::update(ObjectRef::from_obj(&*ts), ctx).await;
                 }
             }
         }
@@ -26,7 +37,7 @@ pub fn handle(ev: Event<Endpoints>, ctx: &Ctx) {
             tracing::debug!("updating traffic splits on endpoints restart");
             // On restart, reconcile all known traffic splits.
             for ts in ctx.traffic_splits.state() {
-                traffic_split::update(ObjectRef::from_obj(&*ts), ctx);
+                traffic_split::update(ObjectRef::from_obj(&*ts), ctx).await;
             }
         }
     }

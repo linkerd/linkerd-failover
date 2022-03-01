@@ -1,8 +1,7 @@
 #![deny(warnings, rust_2018_idioms)]
 #![forbid(unsafe_code)]
 
-use futures::{Stream, StreamExt};
-use kube::runtime::{reflector::ObjectRef, watcher::Event};
+use kube::runtime::reflector::ObjectRef;
 use kubert::runtime::Store;
 use tokio::sync::mpsc;
 
@@ -19,17 +18,6 @@ pub struct Ctx {
 }
 
 impl Ctx {
-    pub async fn process<T, S, F>(self, events: S, handle: F)
-    where
-        S: Stream<Item = Event<T>>,
-        F: Fn(Event<T>, &Ctx),
-    {
-        tokio::pin!(events);
-        while let Some(ev) = events.next().await {
-            handle(ev, &self);
-        }
-    }
-
     fn endpoint_is_ready(&self, ns: &str, name: &str) -> bool {
         let k = ObjectRef::new(name).within(ns);
         self.endpoints.get(&k).map_or(false, |ep| {

@@ -52,10 +52,17 @@ async fn main() -> Result<()> {
         .build()
         .await?;
 
+    // Create cached watches for traffic splits and endpoints. This enable us to watch for updates
+    // and to lookup previously-observed objects.
     let (endpoints, endpoints_events) = runtime.cache_all(ListParams::default());
-    let (traffic_splits, traffic_splits_events) =
+    let (traffic_splits, traffic_split_events) =
         runtime.cache_all(ListParams::default().labels(&label_selector));
+
+    // This should be large enough to handle all traffic splits in the cluster so that a restart
+    // doesn't completely fill the queue; but it shouldn't be so large that slow writes can cause
+    // the process to balloon memory usage.
     let (patches_tx, patches_rx) = mpsc::channel(1000);
+
     let ctx = Ctx {
         endpoints,
         traffic_splits,
@@ -63,12 +70,11 @@ async fn main() -> Result<()> {
     };
 
     tokio::spawn(
-        ctx.clone()
-            .process(endpoints_events, endpoints::handle)
+        endpoints::process(endpoints_events, ctx.clone())
             .instrument(tracing::info_span!("endpoints")),
     );
     tokio::spawn(
-        ctx.process(traffic_splits_events, traffic_split::handle)
+        traffic_split::process(traffic_split_events, ctx)
             .instrument(tracing::info_span!("trafficsplit")),
     );
 
