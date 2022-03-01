@@ -10,6 +10,7 @@ pub mod traffic_split;
 
 pub use self::{endpoints::Endpoints, traffic_split::TrafficSplit};
 
+/// Shares state between the endpoints and trafficsplit watches
 #[derive(Clone)]
 pub struct Ctx {
     pub endpoints: Store<Endpoints>,
@@ -18,17 +19,22 @@ pub struct Ctx {
 }
 
 impl Ctx {
+    /// Returns true if there is a cached `Endpoints` resource with the given namespace and name and
+    /// it has ready addresses
     fn endpoint_is_ready(&self, ns: &str, name: &str) -> bool {
-        let k = ObjectRef::new(name).within(ns);
-        self.endpoints.get(&k).map_or(false, |ep| {
-            ep.subsets.as_ref().map_or(false, |subsets| {
-                subsets.iter().any(|subset| {
-                    subset
-                        .addresses
-                        .as_ref()
-                        .map_or(false, |addrs| !addrs.is_empty())
-                })
-            })
+        let ep = match self.endpoints.get(&ObjectRef::new(name).within(ns)) {
+            Some(ep) => ep,
+            None => return false,
+        };
+
+        let subsets = match &ep.subsets {
+            Some(subsets) => subsets,
+            None => return false,
+        };
+
+        subsets.iter().any(|s| match &s.addresses {
+            Some(addrs) => !addrs.is_empty(),
+            None => false,
         })
     }
 }
