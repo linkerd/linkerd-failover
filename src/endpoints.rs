@@ -25,7 +25,7 @@ pub(super) async fn handle(ev: Event<Endpoints>, ctx: &Ctx) {
                     && ts.spec.backends.iter().any(|b| b.service == ep.name())
                 {
                     tracing::debug!(
-                        endpoints = %ep.name(),
+                        service = %ep.name(),
                         "updating traffic split for endpoints",
                     );
                     traffic_split::update(ObjectRef::from_obj(&*ts), ctx).await;

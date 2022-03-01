@@ -14,7 +14,7 @@ pub use self::{endpoints::Endpoints, traffic_split::TrafficSplit};
 pub struct Ctx {
     pub endpoints: Store<Endpoints>,
     pub traffic_splits: Store<TrafficSplit>,
-    pub patches: mpsc::Sender<traffic_split::Update>,
+    pub patches: mpsc::Sender<traffic_split::FailoverUpdate>,
 }
 
 impl Ctx {
@@ -37,7 +37,10 @@ impl Ctx {
 mod tests {
     use super::*;
     use k8s_openapi::api::core::v1::{EndpointAddress, EndpointSubset};
-    use kube::runtime::reflector::{store::Writer, ObjectRef};
+    use kube::runtime::{
+        reflector::{store::Writer, ObjectRef},
+        watcher::Event,
+    };
     use tokio_stream::wrappers::ReceiverStream;
     use tokio_test::{assert_pending, assert_ready_eq, task};
 
@@ -56,7 +59,7 @@ mod tests {
         Ctx,
         Writer<Endpoints>,
         Writer<TrafficSplit>,
-        task::Spawn<ReceiverStream<traffic_split::Update>>,
+        task::Spawn<ReceiverStream<traffic_split::FailoverUpdate>>,
     ) {
         let endpoints = Writer::default();
         let traffic_splits = Writer::default();
@@ -126,7 +129,7 @@ mod tests {
             },
         ]);
         endpoints.apply_watcher_event(&restart_eps);
-        endpoints::handle(restart_eps, &ctx);
+        endpoints::handle(restart_eps, &ctx).await;
         assert_pending!(patches.poll_next());
 
         let restart_ts = Event::Restarted(vec![TrafficSplit {
@@ -161,11 +164,11 @@ mod tests {
             },
         }]);
         trafficsplit.apply_watcher_event(&restart_ts);
-        traffic_split::handle(restart_ts, &ctx);
+        traffic_split::handle(restart_ts, &ctx).await;
 
         assert_ready_eq!(
             patches.poll_next(),
-            Some(traffic_split::Update {
+            Some(traffic_split::FailoverUpdate {
                 target: ObjectRef::new("ts0").within("ns0"),
                 backends: vec![
                     traffic_split::Backend {
@@ -237,7 +240,7 @@ mod tests {
             },
         ]);
         endpoints.apply_watcher_event(&restart_eps);
-        endpoints::handle(restart_eps, &ctx);
+        endpoints::handle(restart_eps, &ctx).await;
         assert_pending!(patches.poll_next());
 
         let restart_ts = Event::Restarted(vec![TrafficSplit {
@@ -272,11 +275,11 @@ mod tests {
             },
         }]);
         trafficsplit.apply_watcher_event(&restart_ts);
-        traffic_split::handle(restart_ts, &ctx);
+        traffic_split::handle(restart_ts, &ctx).await;
 
         assert_ready_eq!(
             patches.poll_next(),
-            Some(traffic_split::Update {
+            Some(traffic_split::FailoverUpdate {
                 target: ObjectRef::new("ts0").within("ns0"),
                 backends: vec![
                     traffic_split::Backend {
@@ -347,7 +350,7 @@ mod tests {
             },
         ]);
         endpoints.apply_watcher_event(&restart_eps);
-        endpoints::handle(restart_eps, &ctx);
+        endpoints::handle(restart_eps, &ctx).await;
         assert_pending!(patches.poll_next());
 
         let restart_ts = Event::Restarted(vec![TrafficSplit {
@@ -382,7 +385,7 @@ mod tests {
             },
         }]);
         trafficsplit.apply_watcher_event(&restart_ts);
-        traffic_split::handle(restart_ts, &ctx);
+        traffic_split::handle(restart_ts, &ctx).await;
 
         assert_pending!(patches.poll_next());
     }

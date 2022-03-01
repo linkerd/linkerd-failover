@@ -7,6 +7,7 @@ use kube::{
 };
 use tokio::{sync::mpsc, time};
 
+/// The `split.smi-spec.io/TrafficSplit` custom resource
 #[derive(
     Clone,
     Debug,
@@ -27,6 +28,7 @@ pub struct TrafficSplitSpec {
     pub backends: Vec<Backend>,
 }
 
+/// A [`TrafficSplit`] backend
 #[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize, schemars::JsonSchema)]
 pub struct Backend {
     pub service: String,
@@ -34,53 +36,25 @@ pub struct Backend {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct Update {
+pub struct FailoverUpdate {
     pub target: ObjectRef<TrafficSplit>,
     pub backends: Vec<Backend>,
 }
 
 /// Reads from `patches` and patches traffic split resources.
 pub async fn apply_patches(
-    mut patches: mpsc::Receiver<Update>,
+    mut patches: mpsc::Receiver<FailoverUpdate>,
     client: kube::Client,
     timeout: time::Duration,
 ) {
     let api = Api::<TrafficSplit>::all(client);
     let params = PatchParams::apply("failover.linkerd.io");
 
-    while let Some(Update { target, backends }) = patches.recv().await {
-        let namespace = target.namespace.as_ref().expect("namespace must be set");
-        let name = target.name;
-        tracing::debug!(%namespace, %name, "patching trafficsplit");
-
-        let patch = mk_patch(namespace, &name, &backends);
-        tracing::trace!(?patch);
-
-        match time::timeout(timeout, api.patch(&name, &params, &Patch::Merge(patch))).await {
-            Ok(Ok(_)) => {
-                tracing::trace!(%namespace, %name, "patched trafficsplit");
-            }
-            Err(_) => tracing::warn!(%namespace, %name, ?timeout, "failed to patch traffic split"),
-            Ok(Err(error)) => {
-                // TODO requeue?
-                tracing::warn!(%namespace, %name, %error,"failed to patch traffic split");
-            }
-        }
+    while let Some(p) = patches.recv().await {
+        patch(&api, &params, timeout, p).await;
     }
 
     tracing::debug!("patch stream ended");
-}
-
-fn mk_patch(namespace: &str, name: &str, backends: &[Backend]) -> serde_json::Value {
-    serde_json::json!({
-        "apiVersion": "split.smi-spec.io/v1alpha2",
-        "kind": "TrafficSplit",
-        "namespace": namespace,
-        "name": name,
-        "spec": {
-            "backends": backends
-        }
-    })
 }
 
 pub async fn process<S>(events: S, ctx: Ctx)
@@ -181,7 +155,47 @@ pub(super) async fn update(target: ObjectRef<TrafficSplit>, ctx: &Ctx) {
         return;
     }
 
-    if ctx.patches.send(Update { target, backends }).await.is_err() {
+    let update = FailoverUpdate { target, backends };
+    if ctx.patches.send(update).await.is_err() {
         tracing::error!("dropping update because the channel is closed");
     }
+}
+
+#[tracing::instrument(skip_all, fields(
+    namespace = %target.namespace.as_ref().unwrap(),
+    trafficsplit = %target.name
+))]
+async fn patch(
+    api: &Api<TrafficSplit>,
+    params: &PatchParams,
+    timeout: time::Duration,
+    FailoverUpdate { target, backends }: FailoverUpdate,
+) {
+    let namespace = target.namespace.as_ref().expect("namespace must be set");
+    let name = target.name;
+    tracing::debug!("patching trafficsplit");
+
+    let patch = mk_patch(namespace, &name, &backends);
+    tracing::trace!(?patch);
+
+    match time::timeout(timeout, api.patch(&name, params, &Patch::Merge(patch))).await {
+        Ok(Ok(_)) => tracing::trace!("patched trafficsplit"),
+        Err(_) => tracing::warn!(?timeout, "failed to patch traffic split"),
+        Ok(Err(error)) => {
+            // TODO requeue?
+            tracing::warn!(%error, "failed to patch traffic split");
+        }
+    }
+}
+
+fn mk_patch(namespace: &str, name: &str, backends: &[Backend]) -> serde_json::Value {
+    serde_json::json!({
+        "apiVersion": "split.smi-spec.io/v1alpha2",
+        "kind": "TrafficSplit",
+        "namespace": namespace,
+        "name": name,
+        "spec": {
+            "backends": backends
+        }
+    })
 }
