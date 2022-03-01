@@ -4,7 +4,7 @@ use kube::{
     runtime::{reflector::ObjectRef, watcher::Event},
     ResourceExt,
 };
-use tokio::sync::mpsc;
+use tokio::{sync::mpsc, time};
 
 #[derive(
     Clone,
@@ -146,21 +146,31 @@ pub fn update(target: ObjectRef<TrafficSplit>, ctx: &Ctx) {
 }
 
 /// Reads from `patches` and patches traffic split resources.
-pub async fn apply_patches(mut patches: mpsc::Receiver<Update>, client: kube::Client) {
+pub async fn apply_patches(
+    mut patches: mpsc::Receiver<Update>,
+    client: kube::Client,
+    timeout: time::Duration,
+) {
     let api = Api::<TrafficSplit>::all(client);
     let params = PatchParams::apply("failover.linkerd.io");
 
     while let Some(Update { target, backends }) = patches.recv().await {
         let namespace = target.namespace.as_ref().expect("namespace must be set");
         let name = target.name;
-        tracing::debug!(%namespace, %name, "applying trafficsplit patch");
+        tracing::debug!(%namespace, %name, "patching trafficsplit");
 
         let patch = mk_patch(namespace, &name, &backends);
         tracing::trace!(?patch);
 
-        if let Err(error) = api.patch(&name, &params, &Patch::Merge(patch)).await {
-            // TODO requeue?
-            tracing::warn!(%error, "failed to patch traffic split");
+        match time::timeout(timeout, api.patch(&name, &params, &Patch::Merge(patch))).await {
+            Ok(Ok(_)) => {
+                tracing::trace!(%namespace, %name, "patched trafficsplit");
+            }
+            Err(_) => tracing::warn!(%namespace, %name, ?timeout, "failed to patch traffic split"),
+            Ok(Err(error)) => {
+                // TODO requeue?
+                tracing::warn!(%namespace, %name, %error,"failed to patch traffic split");
+            }
         }
     }
 

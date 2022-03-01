@@ -5,7 +5,7 @@ use anyhow::{bail, Result};
 use clap::Parser;
 use kube::api::ListParams;
 use linkerd_failover::{endpoints, traffic_split, Ctx};
-use tokio::sync::mpsc;
+use tokio::{sync::mpsc, time};
 use tracing::Instrument;
 
 #[derive(Parser)]
@@ -69,15 +69,20 @@ async fn main() -> Result<()> {
     );
     tokio::spawn(
         ctx.process(traffic_splits_events, traffic_split::handle)
-            .instrument(tracing::info_span!("endpoints")),
+            .instrument(tracing::info_span!("trafficsplit")),
     );
 
     // Spawn a task that applies TrafficSplit patches when either of the above watches detect
     // changes. This helps to ensure to prevent conflicting patches by serializing all updates on a
     // single task.
+    const WRITE_TIMEOUT: time::Duration = time::Duration::from_secs(10);
     tokio::spawn(
         runtime
-            .cancel_on_shutdown(traffic_split::apply_patches(patches_rx, runtime.client()))
+            .cancel_on_shutdown(traffic_split::apply_patches(
+                patches_rx,
+                runtime.client(),
+                WRITE_TIMEOUT,
+            ))
             .instrument(tracing::info_span!("patch")),
     );
 
