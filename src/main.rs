@@ -63,20 +63,25 @@ async fn main() -> Result<()> {
     // the process to balloon memory usage.
     let (patches_tx, patches_rx) = mpsc::channel(1000);
 
-    let ctx = Ctx {
-        endpoints,
-        traffic_splits,
-        patches: patches_tx,
-    };
+    // We spawn the watches on a single task to avoid cache coherency issues caused by
+    // concurrent updates. For example, when processing a traffic split update, we'll iterate
+    // through its backends and look up the endpoint for each. We don't want the endpoint states
+    // to change while looping--for example, changing the state of the primary backend. By
+    // spawning both watches on a single task, we ensure that the cache cannot be updated while
+    // an update is being processed.
 
-    tokio::spawn(
-        endpoints::process(endpoints_events, ctx.clone())
-            .instrument(tracing::info_span!("endpoints")),
-    );
-    tokio::spawn(
-        traffic_split::process(traffic_split_events, ctx)
-            .instrument(tracing::info_span!("trafficsplit")),
-    );
+    tokio::spawn(async move {
+        let ctx = Ctx {
+            endpoints,
+            traffic_splits,
+            patches: patches_tx,
+        };
+        let eps = endpoints::process(endpoints_events, ctx.clone())
+            .instrument(tracing::info_span!("endpoints"));
+        let ts = traffic_split::process(traffic_split_events, ctx)
+            .instrument(tracing::info_span!("trafficsplit"));
+        tokio::join!(eps, ts);
+    });
 
     // Spawn a task that applies TrafficSplit patches when either of the above watches detect
     // changes. This helps to ensure to prevent conflicting patches by serializing all updates on a
