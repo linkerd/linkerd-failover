@@ -114,7 +114,7 @@ pub(super) async fn update(target: ObjectRef<TrafficSplit>, ctx: &Ctx) {
             return;
         }
     };
-    let primary_active = ctx.endpoint_is_ready(namespace, primary_service);
+    let primary_active = ctx.endpoints_ready(namespace, primary_service);
 
     let mut backends = Vec::with_capacity(split.spec.backends.len());
     let mut changed = false;
@@ -124,7 +124,7 @@ pub(super) async fn update(target: ObjectRef<TrafficSplit>, ctx: &Ctx) {
             backend.service == *primary_service
         } else {
             // Otherwise, if the service has ready endpoints, it's active.
-            ctx.endpoint_is_ready(namespace, &backend.service)
+            ctx.endpoints_ready(namespace, &backend.service)
         };
 
         let weight = if active { 1 } else { 0 };

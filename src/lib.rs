@@ -21,7 +21,7 @@ pub struct Ctx {
 impl Ctx {
     /// Returns true if there is a cached `Endpoints` resource with the given namespace and name and
     /// it has ready addresses
-    fn endpoint_is_ready(&self, ns: &str, name: &str) -> bool {
+    fn endpoints_ready(&self, ns: &str, name: &str) -> bool {
         if let Some(ep) = self.endpoints.get(&ObjectRef::new(name).within(ns)) {
             if let Some(subsets) = &ep.subsets {
                 return subsets.iter().any(|s| match &s.addresses {
@@ -79,7 +79,7 @@ mod tests {
         )
     }
 
-    fn endpoint_ready(name: impl Into<String>, ip: impl Into<String>) -> Endpoints {
+    fn endpoints_ready(name: impl Into<String>, ip: impl Into<String>) -> Endpoints {
         Endpoints {
             metadata: kube::core::ObjectMeta {
                 name: Some(name.into()),
@@ -96,7 +96,7 @@ mod tests {
         }
     }
 
-    fn endpoint_not_ready(name: impl Into<String>, ip: impl Into<String>) -> Endpoints {
+    fn endpoints_not_ready(name: impl Into<String>, ip: impl Into<String>) -> Endpoints {
         Endpoints {
             metadata: kube::core::ObjectMeta {
                 name: Some(name.into()),
@@ -151,9 +151,9 @@ mod tests {
         let (ctx, mut endpoints, mut trafficsplit, mut patches) = mk_ctx(10);
 
         let restart_eps = Event::Restarted(vec![
-            endpoint_ready("primary", "10.11.12.13"),
-            endpoint_ready("secondary", "10.11.12.14"),
-            endpoint_ready("tertiary", "10.11.12.15"),
+            endpoints_ready("primary", "10.11.12.13"),
+            endpoints_ready("secondary", "10.11.12.14"),
+            endpoints_ready("tertiary", "10.11.12.15"),
         ]);
         endpoints.apply_watcher_event(&restart_eps);
         endpoints::handle(restart_eps, &ctx).await;
@@ -192,9 +192,9 @@ mod tests {
         let (ctx, mut endpoints, mut trafficsplit, mut patches) = mk_ctx(10);
 
         let restart_eps = Event::Restarted(vec![
-            endpoint_not_ready("primary", "10.11.12.13"),
-            endpoint_ready("secondary", "10.11.12.14"),
-            endpoint_ready("tertiary", "10.11.12.15"),
+            endpoints_not_ready("primary", "10.11.12.13"),
+            endpoints_ready("secondary", "10.11.12.14"),
+            endpoints_ready("tertiary", "10.11.12.15"),
         ]);
         endpoints.apply_watcher_event(&restart_eps);
         endpoints::handle(restart_eps, &ctx).await;
@@ -232,9 +232,9 @@ mod tests {
         let (ctx, mut endpoints, mut trafficsplit, mut patches) = mk_ctx(10);
 
         let restart_eps = Event::Restarted(vec![
-            endpoint_ready("primary", "10.11.12.13"),
-            endpoint_ready("secondary", "10.11.12.14"),
-            endpoint_ready("tertiary", "10.11.12.15"),
+            endpoints_ready("primary", "10.11.12.13"),
+            endpoints_ready("secondary", "10.11.12.14"),
+            endpoints_ready("tertiary", "10.11.12.15"),
         ]);
         endpoints.apply_watcher_event(&restart_eps);
         endpoints::handle(restart_eps, &ctx).await;
