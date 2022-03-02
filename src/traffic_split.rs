@@ -1,12 +1,21 @@
 use super::Ctx;
+use futures::prelude::*;
 use kube::{
     api::{Api, Patch, PatchParams},
-    runtime::{reflector::ObjectRef, watcher},
+    runtime::{reflector::ObjectRef, watcher::Event},
     ResourceExt,
 };
+use tokio::{sync::mpsc, time};
 
+/// The `split.smi-spec.io/TrafficSplit` custom resource
 #[derive(
-    Clone, Debug, kube::CustomResource, serde::Deserialize, serde::Serialize, schemars::JsonSchema,
+    Clone,
+    Debug,
+    Default,
+    kube::CustomResource,
+    serde::Deserialize,
+    serde::Serialize,
+    schemars::JsonSchema,
 )]
 #[kube(
     group = "split.smi-spec.io",
@@ -19,103 +28,174 @@ pub struct TrafficSplitSpec {
     pub backends: Vec<Backend>,
 }
 
-#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, schemars::JsonSchema)]
+/// A [`TrafficSplit`] backend
+#[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize, schemars::JsonSchema)]
 pub struct Backend {
     pub service: String,
     pub weight: u32,
 }
 
-pub async fn handle(ev: watcher::Event<TrafficSplit>, ctx: &Ctx) {
+#[derive(Clone, Debug, PartialEq)]
+pub struct FailoverUpdate {
+    pub target: ObjectRef<TrafficSplit>,
+    pub backends: Vec<Backend>,
+}
+
+/// Reads from `patches` and patches traffic split resources.
+pub async fn apply_patches(
+    mut patches: mpsc::Receiver<FailoverUpdate>,
+    client: kube::Client,
+    timeout: time::Duration,
+) {
+    let api = Api::<TrafficSplit>::all(client);
+    let params = PatchParams::apply("failover.linkerd.io");
+
+    while let Some(p) = patches.recv().await {
+        patch(&api, &params, timeout, p).await;
+    }
+
+    tracing::debug!("patch stream ended");
+}
+
+pub async fn process<S>(events: S, ctx: Ctx)
+where
+    S: Stream<Item = Event<TrafficSplit>>,
+{
+    tokio::pin!(events);
+    while let Some(ev) = events.next().await {
+        handle(ev, &ctx).await;
+    }
+}
+
+pub(super) async fn handle(ev: Event<TrafficSplit>, ctx: &Ctx) {
     match ev {
-        watcher::Event::Restarted(tss) => {
+        Event::Restarted(tss) => {
             for ts in &tss {
                 update(ObjectRef::from_obj(ts), ctx).await;
             }
         }
-        watcher::Event::Applied(ts) => {
+        Event::Applied(ts) => {
             update(ObjectRef::from_obj(&ts), ctx).await;
         }
-        watcher::Event::Deleted(_) => {
+        Event::Deleted(_) => {
             // nothing to do when a split is deleted.
         }
     }
 }
 
-pub async fn update(ts: ObjectRef<TrafficSplit>, ctx: &Ctx) {
-    tracing::debug!(?ts, "updating traffic split");
-
-    let ns = ts
+/// Processes a traffic split update for the rereferenced resource. If a write is necessary, a patch
+/// is enqueued via the context.
+#[tracing::instrument(skip_all, fields(
+    namespace = %target.namespace.as_ref().unwrap(),
+    trafficsplit = %target.name
+))]
+pub(super) async fn update(target: ObjectRef<TrafficSplit>, ctx: &Ctx) {
+    let namespace = target
         .namespace
         .as_ref()
         .expect("trafficsplit must be namespaced");
-    let split = match ctx.traffic_splits.get(&ts) {
+    tracing::debug!("checking traffic split for update");
+
+    let split = match ctx.traffic_splits.get(&target) {
         Some(s) => s,
         None => {
-            tracing::warn!(%ts, "trafficsplit not found");
+            tracing::warn!("trafficsplit not found");
             return;
         }
     };
 
-    let svc_primary = match split
+    let primary_service = match split
         .annotations()
         .get("failover.linkerd.io/primary-service")
     {
         Some(name) => name,
         None => {
-            tracing::info!(
-                namespace = %ns,
-                name = %ts.name,
-                "trafficsplit is missing the `failover.linkerd.io/primary-service` annotation; skipping"
-            );
+            tracing::info!("trafficsplit is missing the `failover.linkerd.io/primary-service` annotation; skipping");
             return;
         }
     };
+    let primary_active = ctx.endpoints_ready(namespace, primary_service);
 
-    let primary_active = ctx
-        .endpoints
-        .get(&ObjectRef::new(svc_primary).within(ns))
-        .map_or(false, |ep| ep.subsets.is_some());
-
-    let mut backends = vec![];
+    let mut backends = Vec::with_capacity(split.spec.backends.len());
+    let mut changed = false;
     for backend in &split.spec.backends {
-        // Determine if this backend should be active.
-        let active = if &backend.service == svc_primary {
-            // If this service the primary, then use the prior check to determine whether it's active
-            primary_active
+        // If the primary service is active, *only* the primary service is active.
+        let active = if primary_active {
+            backend.service == *primary_service
         } else {
-            // Otherwise, if the primary is not active, then check the secondary service's state to
-            // determine whether it should be active
-            !primary_active
-                && ctx
-                    .endpoints
-                    .get(&ObjectRef::new(&backend.service).within(ns))
-                    .map_or(false, |ep| ep.subsets.is_some())
+            // Otherwise, if the service has ready endpoints, it's active.
+            ctx.endpoints_ready(namespace, &backend.service)
         };
 
-        let mut backend = backend.clone();
-        backend.weight = if active { 1 } else { 0 };
-        backends.push(backend);
+        let weight = if active { 1 } else { 0 };
+        if weight != backend.weight {
+            changed = true;
+            tracing::debug!(
+                service = %backend.service,
+                %weight,
+                "updating service weight"
+            );
+        } else {
+            tracing::trace!(
+                service = %backend.service,
+                %weight,
+                "unchanged service weight"
+            );
+        }
+
+        backends.push({
+            let mut b = backend.clone();
+            b.weight = weight;
+            b
+        });
     }
 
-    patch(&ts, backends, ctx).await;
+    if !changed {
+        tracing::debug!("no update necessary");
+        return;
+    }
+
+    let update = FailoverUpdate { target, backends };
+    if ctx.patches.send(update).await.is_err() {
+        tracing::error!("dropping update because the channel is closed");
+    }
 }
 
-async fn patch(ts: &ObjectRef<TrafficSplit>, backends: Vec<Backend>, ctx: &Ctx) {
-    let ns = ts.namespace.as_ref().expect("namespace must be set");
-    let ts_api = Api::<TrafficSplit>::namespaced(ctx.client.clone(), ns);
-    let ssapply = PatchParams::apply("linkerd_failover_patch");
-    let patch = serde_json::json!({
+#[tracing::instrument(skip_all, fields(
+    namespace = %target.namespace.as_ref().unwrap(),
+    trafficsplit = %target.name
+))]
+async fn patch(
+    api: &Api<TrafficSplit>,
+    params: &PatchParams,
+    timeout: time::Duration,
+    FailoverUpdate { target, backends }: FailoverUpdate,
+) {
+    let namespace = target.namespace.as_ref().expect("namespace must be set");
+    let name = target.name;
+    tracing::debug!("patching trafficsplit");
+
+    let patch = mk_patch(namespace, &name, &backends);
+    tracing::trace!(?patch);
+
+    match time::timeout(timeout, api.patch(&name, params, &Patch::Merge(patch))).await {
+        Ok(Ok(_)) => tracing::trace!("patched trafficsplit"),
+        Err(_) => tracing::warn!(?timeout, "failed to patch traffic split"),
+        Ok(Err(error)) => {
+            // TODO requeue?
+            tracing::warn!(%error, "failed to patch traffic split");
+        }
+    }
+}
+
+fn mk_patch(namespace: &str, name: &str, backends: &[Backend]) -> serde_json::Value {
+    serde_json::json!({
         "apiVersion": "split.smi-spec.io/v1alpha2",
         "kind": "TrafficSplit",
-        "name": ts.name,
-        "namespace": ns,
+        "namespace": namespace,
+        "name": name,
         "spec": {
             "backends": backends
         }
-    });
-    tracing::debug!(?patch);
-
-    if let Err(error) = ts_api.patch(&ts.name, &ssapply, &Patch::Merge(patch)).await {
-        tracing::warn!(%error, "Failed to patch traffic split");
-    }
+    })
 }
