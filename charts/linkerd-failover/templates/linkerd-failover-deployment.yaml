@@ -28,4 +28,4 @@ spec:
         - image: {{.Values.image.registry }}/{{.Values.image.name}}:{{.Values.image.tag }}
           name: linkerd-failover
           args:
-            - --label-selector={{ .Values.labelSelector | quote }}
+            - --selector={{ .Values.labelSelector | quote }}
