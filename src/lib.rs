@@ -132,10 +132,14 @@ mod tests {
                 ),
                 ..Default::default()
             },
-            spec: traffic_split::TrafficSplitSpec {
-                backends,
-                ..Default::default()
-            },
+            spec: traffic_split::TrafficSplitSpec { backends },
+        }
+    }
+
+    fn backend(service: impl Into<String>, weight: u32) -> traffic_split::Backend {
+        traffic_split::Backend {
+            service: service.into(),
+            weight,
         }
     }
 
@@ -159,18 +163,9 @@ mod tests {
             "ts0",
             "primary",
             vec![
-                traffic_split::Backend {
-                    service: "primary".to_owned(),
-                    weight: 1,
-                },
-                traffic_split::Backend {
-                    service: "secondary".to_owned(),
-                    weight: 1,
-                },
-                traffic_split::Backend {
-                    service: "tertiary".to_owned(),
-                    weight: 1,
-                },
+                backend("primary", 1),
+                backend("secondary", 1),
+                backend("tertiary", 1),
             ],
         )]);
         trafficsplit.apply_watcher_event(&restart_ts);
@@ -181,18 +176,9 @@ mod tests {
             Some(traffic_split::FailoverUpdate {
                 target: ObjectRef::new("ts0").within("default"),
                 backends: vec![
-                    traffic_split::Backend {
-                        service: "primary".to_owned(),
-                        weight: 1,
-                    },
-                    traffic_split::Backend {
-                        service: "secondary".to_owned(),
-                        weight: 0,
-                    },
-                    traffic_split::Backend {
-                        service: "tertiary".to_owned(),
-                        weight: 0,
-                    },
+                    backend("primary", 1),
+                    backend("secondary", 0),
+                    backend("tertiary", 0),
                 ]
             })
         );
@@ -218,18 +204,9 @@ mod tests {
             "ts0",
             "primary",
             vec![
-                traffic_split::Backend {
-                    service: "primary".to_owned(),
-                    weight: 1,
-                },
-                traffic_split::Backend {
-                    service: "secondary".to_owned(),
-                    weight: 0,
-                },
-                traffic_split::Backend {
-                    service: "tertiary".to_owned(),
-                    weight: 0,
-                },
+                backend("primary", 1),
+                backend("secondary", 0),
+                backend("tertiary", 0),
             ],
         )]);
         trafficsplit.apply_watcher_event(&restart_ts);
@@ -240,18 +217,9 @@ mod tests {
             Some(traffic_split::FailoverUpdate {
                 target: ObjectRef::new("ts0").within("default"),
                 backends: vec![
-                    traffic_split::Backend {
-                        service: "primary".to_owned(),
-                        weight: 0,
-                    },
-                    traffic_split::Backend {
-                        service: "secondary".to_owned(),
-                        weight: 1,
-                    },
-                    traffic_split::Backend {
-                        service: "tertiary".to_owned(),
-                        weight: 1,
-                    },
+                    backend("primary", 0),
+                    backend("secondary", 1),
+                    backend("tertiary", 1),
                 ]
             })
         );
@@ -276,18 +244,9 @@ mod tests {
             "ts0",
             "primary",
             vec![
-                traffic_split::Backend {
-                    service: "primary".to_owned(),
-                    weight: 1,
-                },
-                traffic_split::Backend {
-                    service: "secondary".to_owned(),
-                    weight: 0,
-                },
-                traffic_split::Backend {
-                    service: "tertiary".to_owned(),
-                    weight: 0,
-                },
+                backend("primary", 1),
+                backend("secondary", 0),
+                backend("tertiary", 0),
             ],
         )]);
         trafficsplit.apply_watcher_event(&restart_ts);
