@@ -32,7 +32,7 @@ struct Args {
         default_value = "app.kubernetes.io/managed-by=linkerd-failover",
         short = 'l'
     )]
-    label_selector: String,
+    selector: String,
 }
 
 #[tokio::main]
@@ -42,7 +42,7 @@ async fn main() -> Result<()> {
         log_format,
         client,
         admin,
-        label_selector,
+        selector,
     } = Args::parse();
 
     let mut runtime = kubert::Runtime::builder()
@@ -56,7 +56,7 @@ async fn main() -> Result<()> {
     // and to lookup previously-observed objects.
     let (endpoints, endpoints_events) = runtime.cache_all(ListParams::default());
     let (traffic_splits, traffic_split_events) =
-        runtime.cache_all(ListParams::default().labels(&label_selector));
+        runtime.cache_all(ListParams::default().labels(&selector));
 
     // This should be large enough to handle all traffic splits in the cluster so that a restart
     // doesn't completely fill the queue; but it shouldn't be so large that slow writes can cause
