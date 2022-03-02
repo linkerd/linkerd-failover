@@ -22,20 +22,16 @@ impl Ctx {
     /// Returns true if there is a cached `Endpoints` resource with the given namespace and name and
     /// it has ready addresses
     fn endpoint_is_ready(&self, ns: &str, name: &str) -> bool {
-        let ep = match self.endpoints.get(&ObjectRef::new(name).within(ns)) {
-            Some(ep) => ep,
-            None => return false,
-        };
+        if let Some(ep) = self.endpoints.get(&ObjectRef::new(name).within(ns)) {
+            if let Some(subsets) = &ep.subsets {
+                return subsets.iter().any(|s| match &s.addresses {
+                    Some(addrs) => !addrs.is_empty(),
+                    None => false,
+                });
+            }
+        }
 
-        let subsets = match &ep.subsets {
-            Some(subsets) => subsets,
-            None => return false,
-        };
-
-        subsets.iter().any(|s| match &s.addresses {
-            Some(addrs) => !addrs.is_empty(),
-            None => false,
-        })
+        false
     }
 }
 
