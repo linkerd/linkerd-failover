@@ -1,0 +1,9 @@
+podinfoWest:
+  replicas: 1
+  activated: true
+podinfoCentral:
+  replicas: 1
+  activated: false
+podinfoEast:
+  replicas: 1
+  activated: false

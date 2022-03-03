@@ -9,13 +9,13 @@ fi
 
 bindir=$( cd "${BASH_SOURCE[0]%/*}" && pwd )
 rootdir=$( cd "$bindir"/.. && pwd )
-# shellcheck source=_tag.sh
-. "$bindir"/_tag.sh
 
 # shellcheck source=_os.sh
 . "$bindir"/_os.sh
 
 export DOCKER_REGISTRY=${DOCKER_REGISTRY:-cr.l5d.io/linkerd}
+
+export DOCKER_TAG=${DOCKER_TAG:-latest}
 
 # buildx cache directory
 export DOCKER_BUILDKIT_CACHE=${DOCKER_BUILDKIT_CACHE:-}
@@ -57,6 +57,6 @@ arch=$(architecture)
 # shellcheck disable=SC2086
 docker buildx build "$rootdir" $cache_params \
     $output_params \
-    -t "$DOCKER_REGISTRY/failover:$(head_root_tag)" \
+    -t "$DOCKER_REGISTRY/failover:${DOCKER_TAG}" \
     -f "$rootdir/$arch.dockerfile" \
     "$@"

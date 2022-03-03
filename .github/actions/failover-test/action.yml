@@ -1,0 +1,28 @@
+name: Failover test
+description: Runs helm tests for the provided scenario
+inputs:
+  west:
+    description: podinfo west available
+    required: true
+  central:
+    description: podinfo central available
+    required: true
+  east:
+    description: podinfo east available
+    required: true
+runs:
+  using: composite
+  steps:
+  - shell: bash
+    run: |
+      helm upgrade -i -n linkerd-failover-tests --create-namespace --wait \
+        --set podinfoWest.replicas=${{ inputs.west == true && 1 || 0 }} \
+        --set podinfoWest.activated=${{ inputs.west == true && true || false }} \
+        --set podinfoCentral.replicas=${{ inputs.central == true && 1 || 0 }} \
+        --set podinfoCentral.activated=${{ inputs.central == true && true ||false }} \
+        --set podinfoEast.replicas=${{ inputs.east == true && 1 || 0 }} \
+        --set podinfoEast.activated=${{ inputs.east == true && true || false }} \
+        linkerd-failover-tests charts/linkerd-failover-tests
+      helm -n linkerd-failover-tests test linkerd-failover-tests || \
+        # Display test pod logs if it errored
+        ( kubectl -n linkerd-failover-tests logs curl curl; exit 1 )

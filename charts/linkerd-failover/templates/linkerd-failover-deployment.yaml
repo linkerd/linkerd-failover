@@ -26,6 +26,7 @@ spec:
       serviceAccountName: linkerd-failover
       containers:
       - image: {{.Values.image.registry }}/{{.Values.image.name}}:{{.Values.image.tag }}
+        imagePullPolicy: IfNotPresent
         name: linkerd-failover
         args:
         - --log-level={{.Values.logLevel}}
