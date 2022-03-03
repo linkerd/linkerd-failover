@@ -1,7 +1,7 @@
 # Docker image for the operator
 image:
   registry: cr.l5d.io/linkerd
-  name: linkerd-failover
+  name: failover
   tag: latest
 
 # -- Determines which `TrafficSplit` instances to consider for failover
