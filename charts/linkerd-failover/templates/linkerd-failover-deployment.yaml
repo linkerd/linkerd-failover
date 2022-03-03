@@ -28,4 +28,5 @@ spec:
         - image: {{.Values.image.registry }}/{{.Values.image.name}}:{{.Values.image.tag }}
           name: linkerd-failover
           args:
-            - --selector={{ .Values.labelSelector | quote }}
+            {{- $sel := printf "failover.linkerd.io/controlled-by=%s" .Release.Name }}
+            - --selector={{ .Values.selector | default $sel | quote }}

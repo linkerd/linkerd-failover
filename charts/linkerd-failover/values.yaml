@@ -4,5 +4,6 @@ image:
   name: failover
   tag: latest
 
-# -- Determines which `TrafficSplit` instances to consider for failover
-labelSelector: "app.kubernetes.io/managed-by=linkerd-failover"
+# -- Determines which `TrafficSplit` instances to consider for failover. If
+# empty, defaults to failover.linkerd.io/controlled-by={{ .Release.Name }}
+selector:
