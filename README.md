@@ -58,7 +58,7 @@ CRD, it is required to install the `linkerd-smi` extension.
 The following Helm values are available:
 
 - `selector`: determines which `TrafficSplit` instances to consider for
-  failover. It defaults to `app.kubernetes.io/managed-by={{.Release.Name}}`
+  failover. It defaults to `failover.linkerd.io/controlled-by={{.Release.Name}}`
   (the value refers to the release name used in `helm install`).
 
 ## Installation
