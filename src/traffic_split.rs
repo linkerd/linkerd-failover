@@ -47,13 +47,10 @@ pub async fn apply_patches(
     client: kube::Client,
     timeout: time::Duration,
 ) {
-    let api = Api::<TrafficSplit>::all(client);
     let params = PatchParams::apply("failover.linkerd.io");
-
     while let Some(p) = patches.recv().await {
-        patch(&api, &params, timeout, p).await;
+        patch(client.clone(), &params, timeout, p).await;
     }
-
     tracing::debug!("patch stream ended");
 }
 
@@ -166,16 +163,17 @@ pub(super) async fn update(target: ObjectRef<TrafficSplit>, ctx: &Ctx) {
     trafficsplit = %target.name
 ))]
 async fn patch(
-    api: &Api<TrafficSplit>,
+    client: kube::Client,
     params: &PatchParams,
     timeout: time::Duration,
     FailoverUpdate { target, backends }: FailoverUpdate,
 ) {
-    let namespace = target.namespace.as_ref().expect("namespace must be set");
+    let namespace = target.namespace.expect("namespace must be set");
+    let api = Api::<TrafficSplit>::namespaced(client, &namespace);
     let name = target.name;
     tracing::debug!("patching trafficsplit");
 
-    let patch = mk_patch(namespace, &name, &backends);
+    let patch = mk_patch(&name, &backends);
     tracing::trace!(?patch);
 
     match time::timeout(timeout, api.patch(&name, params, &Patch::Merge(patch))).await {
@@ -188,11 +186,10 @@ async fn patch(
     }
 }
 
-fn mk_patch(namespace: &str, name: &str, backends: &[Backend]) -> serde_json::Value {
+fn mk_patch(name: &str, backends: &[Backend]) -> serde_json::Value {
     serde_json::json!({
         "apiVersion": "split.smi-spec.io/v1alpha2",
         "kind": "TrafficSplit",
-        "namespace": namespace,
         "name": name,
         "spec": {
             "backends": backends
