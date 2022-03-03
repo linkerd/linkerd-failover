@@ -1,4 +1,10 @@
-# Docker image for the operator
+# -- Log level
+logLevel: linkerd=info,warn
+
+# -- Log format (`plain` or `json`)
+logFormat: plain
+
+# -- Docker image
 image:
   registry: cr.l5d.io/linkerd
   name: failover

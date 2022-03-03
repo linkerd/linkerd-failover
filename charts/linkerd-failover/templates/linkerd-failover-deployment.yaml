@@ -25,8 +25,10 @@ spec:
     spec:
       serviceAccountName: linkerd-failover
       containers:
-        - image: {{.Values.image.registry }}/{{.Values.image.name}}:{{.Values.image.tag }}
-          name: linkerd-failover
-          args:
-            {{- $sel := printf "failover.linkerd.io/controlled-by=%s" .Release.Name }}
-            - --selector={{ .Values.selector | default $sel | quote }}
+      - image: {{.Values.image.registry }}/{{.Values.image.name}}:{{.Values.image.tag }}
+        name: linkerd-failover
+        args:
+        - --log-level={{.Values.logLevel | quote}}
+        - --log-format={{.Values.logFormat | quote}}
+        {{- $sel := printf "failover.linkerd.io/controlled-by=%s" .Release.Name}}
+        - --selector={{.Values.selector | default $sel | quote}}
