@@ -8,7 +8,7 @@ metadata:
 rules:
 - apiGroups: ["split.smi-spec.io"]
   resources: ["trafficsplits"]
-  verbs: ["list", "get", "watch"]
+  verbs: ["list", "get", "watch", "patch"]
 - apiGroups: [""]
   resources: ["endpoints"]
   verbs: ["list", "get", "watch"]
