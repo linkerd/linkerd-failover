@@ -29,7 +29,7 @@ struct Args {
 
     #[clap(
         long,
-        default_value = "failover.linkerd.io/controlled-by=linkerd-failover",
+        default_value = "failover.linkerd.io/controlled-by",
         short = 'l'
     )]
     selector: String,
