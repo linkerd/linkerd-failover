@@ -20,6 +20,7 @@ where
 pub(super) async fn handle(ev: Event<Endpoints>, ctx: &Ctx) {
     match ev {
         Event::Applied(ep) | Event::Deleted(ep) => {
+            let mut updated = 0;
             for ts in ctx.traffic_splits.state() {
                 if ts.namespace() == ep.namespace()
                     && ts.spec.backends.iter().any(|b| b.service == ep.name())
@@ -29,8 +30,15 @@ pub(super) async fn handle(ev: Event<Endpoints>, ctx: &Ctx) {
                         "updating traffic split for endpoints",
                     );
                     traffic_split::update(ObjectRef::from_obj(&*ts), ctx).await;
+                    updated += 1;
                 }
             }
+            tracing::debug!(
+                namespace = %ep.namespace().unwrap(),
+                service = %ep.name(),
+                %updated,
+                "updated endpoints"
+            );
         }
 
         Event::Restarted(_) => {
