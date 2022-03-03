@@ -52,7 +52,7 @@ Kubernetes: `>=1.20.0-0`
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| image.name | string | `"linkerd-failover"` |  |
+| image.name | string | `"failover"` |  |
 | image.registry | string | `"cr.l5d.io/linkerd"` |  |
 | image.tag | string | `"latest"` |  |
 | labelSelector | string | `"app.kubernetes.io/managed-by=linkerd-failover"` | Determines which `TrafficSplit` instances to consider for failover |
