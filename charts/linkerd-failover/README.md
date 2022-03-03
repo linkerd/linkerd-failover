@@ -52,9 +52,9 @@ Kubernetes: `>=1.20.0-0`
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| image.name | string | `"failover"` |  |
-| image.registry | string | `"cr.l5d.io/linkerd"` |  |
-| image.tag | string | `"latest"` |  |
+| image | object | `{"name":"failover","registry":"cr.l5d.io/linkerd","tag":"latest"}` | Docker image |
+| logFormat | string | `"plain"` | Log format (`plain` or `json`) |
+| logLevel | string | `"linkerd=info,warn"` | Log level |
 | selector | string | `nil` | Determines which `TrafficSplit` instances to consider for failover. If empty, defaults to failover.linkerd.io/controlled-by={{ .Release.Name }} |
 
 ----------------------------------------------
