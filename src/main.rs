@@ -29,7 +29,7 @@ struct Args {
 
     #[clap(
         long,
-        default_value = "app.kubernetes.io/managed-by=linkerd-failover",
+        default_value = "failover.linkerd.io/controlled-by=linkerd-failover",
         short = 'l'
     )]
     selector: String,
