@@ -10,6 +10,7 @@ RUN apt-get update && \
 ENV CARGO_TARGET_ARMV7_UNKNOWN_LINUX_GNUEABIHF_LINKER=arm-linux-gnueabihf-gcc
 WORKDIR /build
 COPY Cargo.toml Cargo.lock .
+COPY src /build/src
 RUN --mount=type=cache,target=target \
     --mount=type=cache,from=rust:1.59.0,source=/usr/local/cargo,target=/usr/local/cargo \
     cargo fetch --locked

@@ -6,6 +6,7 @@ FROM $RUST_IMAGE as build
 ARG TARGETARCH
 WORKDIR /build
 COPY Cargo.toml Cargo.lock .
+COPY src /build/src
 RUN --mount=type=cache,target=target \
     --mount=type=cache,from=rust:1.59.0,source=/usr/local/cargo,target=/usr/local/cargo \
     cargo fetch --locked
