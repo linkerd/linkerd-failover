@@ -7,8 +7,7 @@ inputs:
     default: cr.l5d.io/linkerd
   docker-tag:
     description: The docker tag for the image
-    required: false
-    default: latest
+    required: true
   docker-target:
     description: The OS-arch the docker build will be targeted to
     required: false

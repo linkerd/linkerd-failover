@@ -11,7 +11,6 @@ permissions:
   contents: read
 env:
   DOCKER_REGISTRY: ghcr.io/linkerd
-  DOCKER_TAG: ${{ env.GITHUB_SHA }}
   ARCHIVES: /home/runner/archives
 
 jobs:
@@ -26,13 +25,13 @@ jobs:
       uses: ./.github/actions/docker-build
       with:
         docker-registry: ${{ env.DOCKER_REGISTRY }}
-        docker-tag: ${{ env.DOCKER_TAG }}
+        docker-tag: ${{ github.sha }}
         docker-target: linux-amd64
         component: failover
     - name: Create artifact with image
       run: |
         mkdir -p ${{ env.ARCHIVES }}
-        docker save "${{ env.DOCKER_REGISTRY}}/failover:${{ env.DOCKER_TAG }}" > ${{ env.ARCHIVES }}/failover.tar
+        docker save "${{ env.DOCKER_REGISTRY}}/failover:${{ github.sha }}" > ${{ env.ARCHIVES }}/failover.tar
     - name: Upload artifact
       uses: actions/upload-artifact@82c141cc518b40d92cc801eee768e7aafc9c2fa2
       with:
@@ -76,7 +75,7 @@ jobs:
       run: |
         helm install linkerd-failover -n linkerd-failover --create-namespace --wait \
           --set image.registry=${{ env.DOCKER_REGISTRY }} \
-          --set image.tag=${{ env.DOCKER_TAG }} \
+          --set image.tag=${{ github.sha }} \
           charts/linkerd-failover
     - name: Test routing to primary
       uses: ./.github/actions/failover-test
