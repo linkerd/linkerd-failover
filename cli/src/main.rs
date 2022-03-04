@@ -46,7 +46,7 @@ async fn main() -> Result<()> {
             bail!(
                 "Run the following commands to install the Failover extension:
 
-helm repo add linderd-failover https://linkerd.github.io/linkerd-failover
+helm repo add linkerd-failover https://linkerd.github.io/linkerd-failover
 helm install linkerd-failover -n linkerd-failover --create-namespace linkerd-failover/linkerd-failover");
         }
         Commands::Uninstall => {
