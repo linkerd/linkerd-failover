@@ -5,7 +5,7 @@ metadata:
   annotations:
     failover.linkerd.io/primary-service: podinfo-west
   labels:
-    foo: bar
+    failover.linkerd.io/controlled-by: linkerd-failover
 spec:
   service: podinfo
   backends:

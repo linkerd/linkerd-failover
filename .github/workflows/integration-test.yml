@@ -85,9 +85,9 @@ jobs:
     - name: Test routing to primary
       uses: ./.github/actions/failover-test
       with:
-        west: 1
-        central: 0
-        east: 0
+        west: true
+        central: false
+        east: false
     - name: Test failover to secondaries
       uses: ./.github/actions/failover-test
       with:
