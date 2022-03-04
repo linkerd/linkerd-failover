@@ -15,7 +15,7 @@ runs:
   steps:
   - shell: bash
     run: |
-      helm upgrade -i -n linkerd-failover-tests --create-namespace --wait \
+      helm upgrade --install -n linkerd-failover-tests --create-namespace --wait \
         --set podinfoWest.replicas=${{ inputs.west == 'true' && 1 || 0 }} \
         --set podinfoWest.activated=${{ inputs.west }} \
         --set podinfoCentral.replicas=${{ inputs.central == 'true' && 1 || 0 }} \
