@@ -11,7 +11,7 @@ permissions:
   contents: read
 env:
   DOCKER_REGISTRY: ghcr.io/linkerd
-  DOCKER_TAG: latest
+  DOCKER_TAG: ${{ env.GITHUB_SHA }}
   ARCHIVES: /home/runner/archives
 
 jobs:
