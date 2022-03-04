@@ -57,6 +57,6 @@ arch=$(architecture)
 # shellcheck disable=SC2086
 docker buildx build "$rootdir" $cache_params \
     $output_params \
-    -t "$DOCKER_REGISTRY/linkerd-failover:$(head_root_tag)" \
+    -t "$DOCKER_REGISTRY/failover:$(head_root_tag)" \
     -f "$rootdir/$arch.dockerfile" \
     "$@"

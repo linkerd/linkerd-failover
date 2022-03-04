@@ -27,11 +27,7 @@ struct Args {
     #[clap(flatten)]
     admin: kubert::AdminArgs,
 
-    #[clap(
-        long,
-        default_value = "app.kubernetes.io/managed-by=linkerd-failover",
-        short = 'l'
-    )]
+    #[clap(long, default_value = "failover.linkerd.io/controlled-by", short = 'l')]
     selector: String,
 }
 
