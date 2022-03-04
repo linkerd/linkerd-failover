@@ -1,5 +1,4 @@
-ARG RUST_VERSION=1.59.0
-ARG RUST_IMAGE=docker.io/library/rust:${RUST_VERSION}
+ARG RUST_IMAGE=docker.io/library/rust:1.59.0
 ARG RUNTIME_IMAGE=gcr.io/distroless/cc
 
 # Builds the operator binary.
@@ -10,11 +9,14 @@ RUN apt-get update && \
     rustup target add aarch64-unknown-linux-gnu
 ENV CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc
 WORKDIR /build
-COPY Cargo.toml Cargo.lock . /build/
+COPY Cargo.toml Cargo.lock .
+RUN --mount=type=cache,target=target \
+    --mount=type=cache,from=rust:1.59.0,source=/usr/local/cargo,target=/usr/local/cargo \
+    cargo fetch --locked
 # XXX(ver) we can't easily cross-compile against openssl, so use rustls on arm.
 RUN --mount=type=cache,target=target \
-    --mount=type=cache,from=rust:1.56.1,source=/usr/local/cargo,target=/usr/local/cargo \
-    cargo build --locked --release --target=aarch64-unknown-linux-gnu \
+    --mount=type=cache,from=rust:1.59.0,source=/usr/local/cargo,target=/usr/local/cargo \
+    cargo build --frozen --release --target=aarch64-unknown-linux-gnu \
         --package=linkerd-failover --no-default-features --features="rustls-tls" && \
     mv target/aarch64-unknown-linux-gnu/release/linkerd-failover /tmp/
 
