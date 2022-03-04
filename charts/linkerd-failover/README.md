@@ -16,14 +16,14 @@ CRD, it is required to install the `linkerd-smi` extension.
 Linkerd-smi installation:
 
 ```console
-helm repo add linderd-smi https://linkerd.github.io/linkerd-smi
+helm repo add linkerd-smi https://linkerd.github.io/linkerd-smi
 helm install linkerd-smi -n linkerd-smi --create-namespace linkerd-smi/linkerd-smi
 ```
 
 Linkerd-failover installation:
 
 ```console
-helm install linkerd-failover -n linkerd-failover --create-namespace --devel linkerd/linkerd-failover
+helm install linkerd-failover -n linkerd-failover --create-namespace --devel charts/linkerd-failover
 ```
 
 ## Get involved
