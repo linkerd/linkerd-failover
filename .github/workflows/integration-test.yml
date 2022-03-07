@@ -80,24 +80,36 @@ jobs:
     - name: Test routing to primary
       uses: ./.github/actions/failover-test
       with:
-        west: true
-        central: false
-        east: false
+        westReplicas: 1
+        westShouldReceiveTraffic: true
+        centralReplicas: 1
+        centralShouldReceiveTraffic: false
+        eastReplicas: 1
+        eastShouldReceiveTraffic: false
     - name: Test failover to secondaries
       uses: ./.github/actions/failover-test
       with:
-        west: false
-        central: true
-        east: true
+        westReplicas: 0
+        westShouldReceiveTraffic: false
+        centralReplicas: 1
+        centralShouldReceiveTraffic: true
+        eastReplicas: 1
+        eastShouldReceiveTraffic: true
     - name: Test removal of one secondary
       uses: ./.github/actions/failover-test
       with:
-        west: false
-        central: false
-        east: true
+        westReplicas: 0
+        westShouldReceiveTraffic: false
+        centralReplicas: 0
+        centralShouldReceiveTraffic: false
+        eastReplicas: 1
+        eastShouldReceiveTraffic: true
     - name: Test reestablishment of primary
       uses: ./.github/actions/failover-test
       with:
-        west: true
-        central: false
-        east: false
+        westReplicas: 1
+        westShouldReceiveTraffic: true
+        centralReplicas: 0
+        centralShouldReceiveTraffic: false
+        eastReplicas: 1
+        eastReceiveTraffic: false

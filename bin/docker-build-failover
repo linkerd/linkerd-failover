@@ -59,4 +59,5 @@ docker buildx build "$rootdir" $cache_params \
     $output_params \
     -t "$DOCKER_REGISTRY/failover:${DOCKER_TAG}" \
     -f "$rootdir/$arch.dockerfile" \
-    "$@"
+    "$@" && \
+      printf "$DOCKER_REGISTRY/failover:${DOCKER_TAG}\n"

@@ -18,7 +18,7 @@ spec:
       success_central=false
       success_east=false
 
-      for i in 1 2 3 4 5 6 7 8 9 10; do
+      for i in $(seq 10); do
         res=$(curl -s http://podinfo.linkerd-failover-tests.svc.cluster.local:9898/)
         case "$res" in 
           *west*) success_west=true ;;
@@ -28,9 +28,9 @@ spec:
       done
 
       code=1
-      [ "$success_west" = {{.Values.podinfoWest.activated}} ] && \
-      [ "$success_central" = {{.Values.podinfoCentral.activated}} ] && \
-      [ "$success_east" = {{.Values.podinfoEast.activated}} ] && \
+      [ "$success_west" = {{.Values.podinfoWest.shouldReceiveTraffic}} ] && \
+      [ "$success_central" = {{.Values.podinfoCentral.shouldReceiveTraffic}} ] && \
+      [ "$success_east" = {{.Values.podinfoEast.shouldReceiveTraffic}} ] && \
       code=0
 
       printf "res=%s\nsuccess_west=%s success_central=%s success_east=%s\n" \
