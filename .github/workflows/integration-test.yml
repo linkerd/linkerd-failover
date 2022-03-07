@@ -112,4 +112,4 @@ jobs:
         centralReplicas: 0
         centralShouldReceiveTraffic: false
         eastReplicas: 1
-        eastReceiveTraffic: false
+        eastShouldReceiveTraffic: false
