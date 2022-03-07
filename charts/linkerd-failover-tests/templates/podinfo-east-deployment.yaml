@@ -1,0 +1,24 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: podinfo-east
+spec:
+  replicas: {{.Values.podinfoEast.replicas }}
+  selector:
+    matchLabels:
+      location: east
+  template:
+    metadata:
+      labels:
+        location: east
+    spec:
+      containers:
+      - name: podinfo
+        image: ghcr.io/stefanprodan/podinfo:6.0.3
+        env:
+        - name: PODINFO_UI_MESSAGE
+          value: "east"
+        ports:
+        - name: http
+          containerPort: 9898
+          protocol: TCP

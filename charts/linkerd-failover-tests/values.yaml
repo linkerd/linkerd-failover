@@ -1,0 +1,9 @@
+podinfoWest:
+  replicas: 1
+  shouldReceiveTraffic: true
+podinfoCentral:
+  replicas: 1
+  shouldReceiveTraffic: false
+podinfoEast:
+  replicas: 1
+  shouldReceiveTraffic: false

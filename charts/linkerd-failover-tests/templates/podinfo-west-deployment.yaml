@@ -1,0 +1,24 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: podinfo-west
+spec:
+  replicas: {{.Values.podinfoWest.replicas }}
+  selector:
+    matchLabels:
+      location: west
+  template:
+    metadata:
+      labels:
+        location: west
+    spec:
+      containers:
+      - name: podinfo
+        image: ghcr.io/stefanprodan/podinfo:6.0.3
+        env:
+        - name: PODINFO_UI_MESSAGE
+          value: "west"
+        ports:
+        - name: http
+          containerPort: 9898
+          protocol: TCP
