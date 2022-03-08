@@ -1,14 +1,10 @@
 name: Integration tests
-on:
-  pull_request: {}
-  push:
-    paths-ignore:
-    - '*.md'
-    - '**/*.md'
-    branches:
-    - main
+
+on: [pull_request]
+
 permissions:
   contents: read
+
 env:
   DOCKER_REGISTRY: ghcr.io/linkerd
   ARCHIVES: /home/runner/archives
