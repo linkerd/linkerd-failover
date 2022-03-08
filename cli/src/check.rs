@@ -53,70 +53,60 @@ impl CheckResult {
     }
 }
 
-pub async fn check(client: Client, pre: bool) -> Vec<CheckResult> {
-    let mut checks: Vec<CheckResult> = vec![];
-
+pub async fn traffic_split_check(client: Client) -> CheckResult {
     let api = Api::<CustomResourceDefinition>::all(client.clone());
-    let mut traffic_split_check = CheckResult::new("TrafficSplit CRD exists");
+    let mut result = CheckResult::new("TrafficSplit CRD exists");
     match api.get_opt("trafficsplits.split.smi-spec.io").await {
-        Result::Ok(Some(_)) => traffic_split_check.result = CheckStatus::Success,
+        Result::Ok(Some(_)) => result.result = CheckStatus::Success,
         Result::Ok(None) => {
-            traffic_split_check.result = CheckStatus::Error;
-            traffic_split_check.error = Some("TrafficSplit CRD is not installed".into());
-            traffic_split_check.hint = Some("https://github.com/linkerd/linkerd-smi");
+            result.result = CheckStatus::Error;
+            result.error = Some("TrafficSplit CRD is not installed".into());
+            result.hint = Some("https://github.com/linkerd/linkerd-smi");
         }
         Result::Err(err) => {
-            traffic_split_check.result = CheckStatus::Error;
-            traffic_split_check.error = Some(err.to_string());
-            traffic_split_check.hint =
-                Some("https://github.com/linkerd/linkerd-failover#troubleshooting");
+            result.result = CheckStatus::Error;
+            result.error = Some(err.to_string());
+            result.hint = Some("https://github.com/linkerd/linkerd-failover#troubleshooting");
         }
     };
-    checks.push(traffic_split_check);
+    result
+}
 
-    if pre {
-        return checks;
-    }
-
-    let mut namespace_check = CheckResult::new("failover extension namespace exists");
+pub async fn namespace_check(client: Client) -> (CheckResult, Option<String>) {
+    let mut result = CheckResult::new("failover extension namespace exists");
     let extension_label = ListParams::default().labels("linkerd.io/extension=failover");
     let api = Api::<Namespace>::all(client.clone());
     let ns_list = api.list(&extension_label).await;
-    let ns = match ns_list {
+    match ns_list {
         Result::Ok(ref objs) if objs.items.len() == 1 => {
-            namespace_check.result = CheckStatus::Success;
-            checks.push(namespace_check);
+            result.result = CheckStatus::Success;
             let ns = objs.items.first().expect("failover namespace must exist");
-            ns
+            (result, Some(ns.name()))
         }
         Result::Ok(ref objs) if objs.items.is_empty() => {
-            namespace_check.result = CheckStatus::Error;
-            namespace_check.error = Some("Failover namespace not found".into());
-            namespace_check.hint =
-                Some("https://github.com/linkerd/linkerd-failover#troubleshooting");
-            checks.push(namespace_check);
-            return checks;
+            result.result = CheckStatus::Error;
+            result.error = Some("Failover namespace not found".into());
+            result.hint = Some("https://github.com/linkerd/linkerd-failover#troubleshooting");
+            (result, None)
         }
         Result::Ok(_) => {
-            namespace_check.result = CheckStatus::Error;
-            namespace_check.error = Some("Multiple failover namespaces found".into());
-            namespace_check.hint =
-                Some("https://github.com/linkerd/linkerd-failover#troubleshooting");
-            checks.push(namespace_check);
-            return checks;
+            result.result = CheckStatus::Error;
+            result.error = Some("Multiple failover namespaces found".into());
+            result.hint = Some("resulthttps://github.com/linkerd/linkerd-failover#troubleshooting");
+            (result, None)
         }
         Result::Err(err) => {
-            namespace_check.result = CheckStatus::Error;
-            namespace_check.error = Some(err.to_string());
-            namespace_check.hint =
-                Some("https://github.com/linkerd/linkerd-failover#troubleshooting");
-            checks.push(namespace_check);
-            return checks;
+            result.result = CheckStatus::Error;
+            result.error = Some(err.to_string());
+            result.hint = Some("https://github.com/linkerd/linkerd-failover#troubleshooting");
+            (result, None)
         }
-    };
+    }
+}
 
-    let mut deploy_check = CheckResult::new("failover controller is healthy");
-    let api = Api::<Deployment>::namespaced(client, ns.name().as_str());
+pub async fn deploy_check(client: Client, ns: &str) -> CheckResult {
+    let mut result = CheckResult::new("failover controller is healthy");
+    let api = Api::<Deployment>::namespaced(client, ns);
     match api.get_opt("linkerd-failover").await {
         Result::Ok(Some(deploy)) => {
             if deploy.status.map_or(false, |status| {
@@ -124,29 +114,41 @@ pub async fn check(client: Client, pre: bool) -> Vec<CheckResult> {
                     .available_replicas
                     .map_or(false, |replicas| replicas > 0)
             }) {
-                deploy_check.result = CheckStatus::Success;
+                result.result = CheckStatus::Success;
             } else {
-                deploy_check.result = CheckStatus::Error;
-                deploy_check.error =
-                    Some("linkerd-failover deployment has no available replicas".into());
-                deploy_check.hint =
-                    Some("https://github.com/linkerd/linkerd-failover#troubleshooting");
+                result.result = CheckStatus::Error;
+                result.error = Some("linkerd-failover deployment has no available replicas".into());
+                result.hint = Some("https://github.com/linkerd/linkerd-failover#troubleshooting");
             }
         }
         Result::Ok(None) => {
-            deploy_check.result = CheckStatus::Error;
-            deploy_check.error = Some("linkerd-failover deployment not found".into());
-            deploy_check.hint = Some("https://github.com/linkerd/linkerd-failover#troubleshooting");
+            result.result = CheckStatus::Error;
+            result.error = Some("linkerd-failover deployment not found".into());
+            result.hint = Some("https://github.com/linkerd/linkerd-failover#troubleshooting");
         }
         Result::Err(err) => {
-            deploy_check.result = CheckStatus::Error;
-            deploy_check.error = Some(err.to_string());
-            deploy_check.hint = Some("https://github.com/linkerd/linkerd-failover#troubleshooting");
+            result.result = CheckStatus::Error;
+            result.error = Some(err.to_string());
+            result.hint = Some("https://github.com/linkerd/linkerd-failover#troubleshooting");
         }
     };
-    checks.push(deploy_check);
+    result
+}
 
-    checks
+pub async fn run_checks(client: Client, pre: bool) -> Vec<CheckResult> {
+    let mut results = Vec::new();
+    results.push(traffic_split_check(client.clone()).await);
+    if pre {
+        return results;
+    }
+    let (result, ns) = namespace_check(client.clone()).await;
+    results.push(result);
+
+    if let Some(ns) = ns {
+        results.push(deploy_check(client, &ns).await);
+    }
+
+    results
 }
 
 pub fn print_checks(results: Vec<CheckResult>) -> bool {

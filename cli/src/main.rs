@@ -58,7 +58,7 @@ helm uninstall linkerd-failover"
         }
         Commands::Check { ref output, pre } => {
             let client = cli.client.try_client().await?;
-            let results = check::check(client, pre).await;
+            let results = check::run_checks(client, pre).await;
             let success = match output {
                 OutputMode::Table => check::print_checks(results),
                 OutputMode::Json => check::json_print_checks(results),
