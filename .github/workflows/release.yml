@@ -4,8 +4,7 @@ on:
   push:
     tags:
     - "*-edge"
-    branches:
-    - main
+
 permissions:
   contents: read
 
@@ -27,6 +26,8 @@ jobs:
         docker-tag: ${{ github.ref_name }}
         docker-target: linux-amd64
         docker-push: 1
+        docker-ghcr-username: ${{ secrets.DOCKER_GHCR_USERNAME }}
+        docker-ghcr-pat: ${{ secrets.DOCKER_GHCR_PAT }}
         component: failover
 
   integration-tests:
@@ -135,8 +136,8 @@ jobs:
     - name: Helm chart creation and upload
       run: |
         mkdir -p target/helm
-        gsutil cp gs://helm.linkerd.io/edge/index.yaml target/helm/index-pre.yaml
+        helm --app-version "${{ github.ref_name }}" -d target/helm package charts/linkerd-failover
         # backup index file before changing it
-        mv target/helm/index-pre.yaml "target/helm/index-pre-failover-${{ github.ref_name }}".yaml
-        helm repo index --url https://helm.linkerd.io/edge/ --merge "/target/helm/index-pre-failover-${{ github.ref_name }}".yaml target/helm
+        gsutil cp gs://helm.linkerd.io/edge/index.yaml "target/helm/index-pre-failover-${{ github.ref_name }}".yaml
+        helm repo index --url https://helm.linkerd.io/edge/ --merge "target/helm/index-pre-failover-${{ github.ref_name }}".yaml target/helm
         gsutil rsync target/helm gs://helm.linkerd.io/edge

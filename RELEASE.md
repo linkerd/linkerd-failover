@@ -7,7 +7,7 @@ extension.
 
 ### Example
 
-```
+```text
 0.0.1-edge
 0.0.2-edge
 0.0.3-edge
