@@ -1,7 +1,7 @@
 [package]
 name = "linkerd-failover-controller"
 version = "0.1.0"
-authors = ["Linkerd authors <cncf-linkerd-dev@lists.cncf.io>"]
+authors = ["Linkerd Authors <cncf-linkerd-dev@lists.cncf.io>"]
 edition = "2018"
 license = "Apache-2.0"
 
