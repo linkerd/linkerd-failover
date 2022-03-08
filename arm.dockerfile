@@ -11,7 +11,7 @@ RUN apt-get update && \
 ENV CARGO_TARGET_ARMV7_UNKNOWN_LINUX_GNUEABIHF_LINKER=arm-linux-gnueabihf-gcc
 WORKDIR /build
 COPY Cargo.toml Cargo.lock .
-COPY src /build/src
+COPY controller /build/
 RUN --mount=type=cache,target=target \
     --mount=type=cache,from=rust:1.59.0,source=/usr/local/cargo,target=/usr/local/cargo \
     cargo fetch --locked
@@ -19,10 +19,10 @@ RUN --mount=type=cache,target=target \
 RUN --mount=type=cache,target=target \
     --mount=type=cache,from=rust:1.59.0,source=/usr/local/cargo,target=/usr/local/cargo \
     cargo build --frozen --release --target=armv7-unknown-linux-gnueabihf \
-        --package=linkerd-failover --no-default-features --features="rustls" && \
-    mv target/armv7-unknown-linux-gnueabihf/release/linkerd-failover /tmp/
+        --package=linkerd-failover-controller --no-default-features --features="rustls" && \
+    mv target/armv7-unknown-linux-gnueabihf/release/linkerd-failover-controller /tmp/
 
 # Creates a minimal runtime image with the operator binary.
 FROM --platform=linux/arm $RUNTIME_IMAGE
-COPY --from=build /tmp/linkerd-failover /bin/
-ENTRYPOINT ["/bin/linkerd-failover"]
+COPY --from=build /tmp/linkerd-failover-controller /bin/
+ENTRYPOINT ["/bin/linkerd-failover-controller"]

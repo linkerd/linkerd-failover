@@ -4,7 +4,7 @@
 use anyhow::{bail, Result};
 use clap::Parser;
 use kube::api::ListParams;
-use linkerd_failover::{endpoints, traffic_split, Ctx};
+use linkerd_failover_controller::{endpoints, traffic_split, Ctx};
 use tokio::{sync::mpsc, time};
 use tracing::Instrument;
 

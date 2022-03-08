@@ -11,7 +11,7 @@ RUN apt-get update && \
 ENV CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc
 WORKDIR /build
 COPY Cargo.toml Cargo.lock .
-COPY src /build/src
+COPY controller /build/
 RUN --mount=type=cache,target=target \
     --mount=type=cache,from=rust:1.59.0,source=/usr/local/cargo,target=/usr/local/cargo \
     cargo fetch --locked
@@ -19,10 +19,10 @@ RUN --mount=type=cache,target=target \
 RUN --mount=type=cache,target=target \
     --mount=type=cache,from=rust:1.59.0,source=/usr/local/cargo,target=/usr/local/cargo \
     cargo build --frozen --release --target=aarch64-unknown-linux-gnu \
-        --package=linkerd-failover --no-default-features --features="rustls-tls" && \
-    mv target/aarch64-unknown-linux-gnu/release/linkerd-failover /tmp/
+        --package=linkerd-failover-controller --no-default-features --features="rustls-tls" && \
+    mv target/aarch64-unknown-linux-gnu/release/linkerd-failover-controller /tmp/
 
 # Creates a minimal runtime image with the operator binary.
 FROM --platform=linux/arm64 $RUNTIME_IMAGE
-COPY --from=build /tmp/linkerd-failover /bin/
-ENTRYPOINT ["/bin/linkerd-failover"]
+COPY --from=build /tmp/linkerd-failover-controller /bin/
+ENTRYPOINT ["/bin/linkerd-failover-controller"]
