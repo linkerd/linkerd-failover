@@ -10,15 +10,19 @@ RUN apt-get update && \
     rustup target add armv7-unknown-linux-gnueabihf
 ENV CARGO_TARGET_ARMV7_UNKNOWN_LINUX_GNUEABIHF_LINKER=arm-linux-gnueabihf-gcc
 WORKDIR /build
-COPY Cargo.toml Cargo.lock . /build/
+COPY Cargo.toml Cargo.lock .
+COPY controller /build/
+RUN --mount=type=cache,target=target \
+    --mount=type=cache,from=rust:1.59.0,source=/usr/local/cargo,target=/usr/local/cargo \
+    cargo fetch --locked
 # XXX(ver) we can't easily cross-compile against openssl, so use rustls on arm.
 RUN --mount=type=cache,target=target \
-    --mount=type=cache,from=rust:1.56.1,source=/usr/local/cargo,target=/usr/local/cargo \
-    cargo build --locked --release --target=armv7-unknown-linux-gnueabihf \
-        --package=linkerd-failover --no-default-features --features="rustls" && \
-    mv target/armv7-unknown-linux-gnueabihf/release/linkerd-failover /tmp/
+    --mount=type=cache,from=rust:1.59.0,source=/usr/local/cargo,target=/usr/local/cargo \
+    cargo build --frozen --release --target=armv7-unknown-linux-gnueabihf \
+        --package=linkerd-failover-controller --no-default-features --features="rustls" && \
+    mv target/armv7-unknown-linux-gnueabihf/release/linkerd-failover-controller /tmp/
 
 # Creates a minimal runtime image with the operator binary.
 FROM --platform=linux/arm $RUNTIME_IMAGE
-COPY --from=build /tmp/linkerd-failover /bin/
-ENTRYPOINT ["/bin/linkerd-failover"]
+COPY --from=build /tmp/linkerd-failover-controller /bin/
+ENTRYPOINT ["/bin/linkerd-failover-controller"]

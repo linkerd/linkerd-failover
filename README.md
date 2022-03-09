@@ -66,7 +66,8 @@ The following Helm values are available:
 Linkerd-smi installation:
 
 ```console
-helm repo add linderd-smi https://linkerd.github.io/linkerd-smi
+helm repo add linkerd-smi https://linkerd.github.io/linkerd-smi
+helm repo up
 helm install linkerd-smi -n linkerd-smi --create-namespace linkerd-smi/linkerd-smi
 ```
 

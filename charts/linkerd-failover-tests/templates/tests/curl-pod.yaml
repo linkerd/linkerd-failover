@@ -1,0 +1,43 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  annotations:
+    helm.sh/hook: test
+    helm.sh/hook-delete-policy: before-hook-creation
+    linkerd.io/inject: enabled
+  name: curl
+spec:
+  containers:
+  - name: curl
+    image: curlimages/curl:7.78.0
+    command: ["/bin/sh"]
+    args:
+    - -ec
+    - |
+      success_west=false
+      success_central=false
+      success_east=false
+
+      for i in $(seq 10); do
+        res=$(curl -s http://podinfo.linkerd-failover-tests.svc.cluster.local:9898/)
+        case "$res" in 
+          *west*) success_west=true ;;
+          *central*) success_central=true ;;
+          *east*) success_east=true ;;
+        esac
+      done
+
+      code=1
+      [ "$success_west" = {{.Values.podinfoWest.shouldReceiveTraffic}} ] && \
+      [ "$success_central" = {{.Values.podinfoCentral.shouldReceiveTraffic}} ] && \
+      [ "$success_east" = {{.Values.podinfoEast.shouldReceiveTraffic}} ] && \
+      code=0
+
+      printf "res=%s\nsuccess_west=%s success_central=%s success_east=%s\n" \
+        "$res" "$success_west" "$success_central" "$success_east"
+
+      # need to shutdown the proxy for the pod to terminate
+      curl -s -XPOST http://localhost:4191/shutdown > /dev/null
+
+      exit $code
+  restartPolicy: Never

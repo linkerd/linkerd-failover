@@ -1,0 +1,36 @@
+<!-- markdownlint-disable -->
+{{ template "chart.header" . }}
+{{ template "chart.description" . }}
+
+{{ template "chart.versionBadge" . }}
+{{ template "chart.typeBadge" . }}
+{{ template "chart.appVersionBadge" . }}
+
+{{ template "chart.homepageLine" . }}
+
+** Please note this chart is only used for integration testing of the linkerd-failover extension. **
+
+## Get involved
+
+* Check out Linkerd's source code at [GitHub][linkerd2].
+* Join Linkerd's [user mailing list][linkerd-users], [developer mailing
+  list][linkerd-dev], and [announcements mailing list][linkerd-announce].
+* Follow [@linkerd][twitter] on Twitter.
+* Join the [Linkerd Slack][slack].
+
+[cncf]: https://www.cncf.io/
+[getting-started]: https://linkerd.io/2/getting-started/
+[linkerd2]: https://github.com/linkerd/linkerd2
+[linkerd-announce]: https://lists.cncf.io/g/cncf-linkerd-announce
+[linkerd-dev]: https://lists.cncf.io/g/cncf-linkerd-dev
+[linkerd-docs]: https://linkerd.io/2/overview/
+[linkerd-users]: https://lists.cncf.io/g/cncf-linkerd-users
+[slack]: http://slack.linkerd.io
+[twitter]: https://twitter.com/linkerd
+
+{{ template "chart.requirementsSection" . }}
+
+{{ template "chart.valuesSection" . }}
+
+{{ template "helm-docs.versionFooter" . }}
+
