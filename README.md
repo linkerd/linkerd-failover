@@ -35,7 +35,7 @@ The following Helm values are available:
 ## Installation
 
 The SMI extension and the operator are to be installed in the local cluster
-(there where the clients consuming the service are located).
+(where the clients consuming the service are located).
 
 Linkerd-smi installation:
 
@@ -99,8 +99,9 @@ spec:
 ### Failover criteria
 
 The failover criteria is readiness failures on the targeted Pods. This is
-directly reflected on the Endpoints pointing to those Pods: only when Pods are
-ready, does the `addresses` field of the relevant Endpoints get populated.
+directly reflected on the Endpoints object associated with those Pods: only when
+Pods are ready, does the `addresses` field of the relevant Endpoints get
+populated.
 
 ### Failover logic
 
@@ -115,5 +116,5 @@ The following describes the logic used to change the `TrafficSplit` weights:
     are ready.
   - Whenever a secondary backend changes its readiness, the weight is
     redistributed among all the secondary backends that are ready
-- Whenever both the primary and secondaries are all unavailable, the connection
-  will fail at the client-side, as expected.
+- Whenever both the primary and secondaries are unavailable, the connection will
+  fail at the client-side, as expected.
