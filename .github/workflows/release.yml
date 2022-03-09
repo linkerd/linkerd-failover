@@ -133,6 +133,8 @@ jobs:
       uses: 'google-github-actions/auth@8d125895b958610ec414ca4dae010257eaa814d3'
       with:
         credentials_json: ${{ secrets.LINKERD_SITE_TOKEN }}
+    - name: Set up Cloud SDK
+      uses: 'google-github-actions/setup-gcloud@a45a0825993ace67ae6e11cf3011b3e7d6795f82'
     - name: Helm chart creation and upload
       run: |
         mkdir -p target/helm
