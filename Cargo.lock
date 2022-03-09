@@ -701,6 +701,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7fb9b38af92608140b86b693604b9ffcc5824240a484d1ecd4795bacb2fe88f3"
 
 [[package]]
+name = "linkerd-failover-cli"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "k8s-openapi",
+ "kube",
+ "kubert",
+ "serde",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
 name = "linkerd-failover-controller"
 version = "0.1.0"
 dependencies = [
@@ -718,20 +732,6 @@ dependencies = [
  "tokio-test",
  "tracing",
  "tracing-subscriber",
-]
-
-[[package]]
-name = "linkerd-failover-cli"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "clap",
- "k8s-openapi",
- "kube",
- "kubert",
- "serde",
- "serde_json",
- "tokio",
 ]
 
 [[package]]
