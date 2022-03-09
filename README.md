@@ -8,45 +8,15 @@ The mechanism relies on Linkerd’s traffic-splitting functionality by providing
 an operator to alter the backend services' weights in real time depending on
 their readiness.
 
-## Failover criteria
+## Table of contents
 
-The failover criteria is readiness failures on the targeted Pods. This is
-directly reflected on the Endpoints pointing to those Pods: only when Pods are
-ready, does the `addresses` field of the relevant Endpoints get populated.
-
-## Services declaration
-
-The primitive used to declare the services to fail over is Linkerd's
-`TrafficSplit` CRD. The `spec.service` field contains the service name addressed
-by clients, and the `spec.backends` fields contain all the possible services
-that apex service might be served by. The service to be considered as primary is
-declared in the `failover.linkerd.io/primary-service` annotation. Those backend
-services can be located in the current cluster or they can point to mirror
-services backed by services in other clusters (through Linkerd's multicluster
-functionality).
-
-## Operator
-
-Linkerd-failover is an operator to be installed in the local cluster (there
-where the clients consuming the service live), whose responsibility is to watch
-over the state of the Endpoints that are associated to the backends of the
-`TrafficSplit`, reacting to the failover criteria explained above.
-
-## Failover logic
-
-The following describes the logic used to change the `TrafficSplit` weights:
-
-- Whenever the primary backend is ready, all the weight is set to it, setting
-  the weights for all the secondary backends to zero.
-- Whenever the primary backend is not ready, the following rules apply only if
-  there is at least one secondary backend that is ready:
-  - The primary backend’s weight is set to zero
-  - The weight is distributed equally among all the secondary backends that
-    are ready
-  - Whenever a secondary backend changes its readiness, the weight is
-    redistributed among all the secondary backends that are ready
-- Whenever both the primary and secondaries are all unavailable, the connection
-  will fail at the client-side, as expected.
+- [Requirements](#requirements)
+- [Configuration](#configuration)
+- [Installation](#installation)
+- [Example](#example)
+- [Implementation details](#implementation-details)
+  - [Failover criteria](#failover-criteria)
+  - [Failover logic](#failover-criteria)
 
 ## Requirements
 
@@ -60,8 +30,12 @@ The following Helm values are available:
 - `selector`: determines which `TrafficSplit` instances to consider for
   failover. It defaults to `failover.linkerd.io/controlled-by={{.Release.Name}}`
   (the value refers to the release name used in `helm install`).
+- `logLevel`, `logFormat`: for configuring the operators logging.
 
 ## Installation
+
+The SMI extension and the operator are to be installed in the local cluster
+(there where the clients consuming the service are located).
 
 Linkerd-smi installation:
 
@@ -74,20 +48,27 @@ helm install linkerd-smi -n linkerd-smi --create-namespace linkerd-smi/linkerd-s
 Linkerd-failover installation:
 
 ```console
-helm install linkerd-failover -n linkerd-failover --create-namespace --devel linkerd/linkerd-failover
-```
+# In case you haven't added the linkerd-edge repo already
+helm repo add linkerd-edge https://helm.linkerd.io/edge
+helm repo up
 
-### Running locally for testing
-
-```console
-cargo run
+helm install linkerd-failover -n linkerd-failover --create-namespace --devel linkerd-edge/linkerd-failover
 ```
 
 ## Example
 
 The following `TrafficSplit` serves as the initial state for a failover setup.
+
+Clients should send requests to the apex service `sample-svc`. The primary
+service that will serve these requests is declared through the
+`failover.linkerd.io/primary-service` annotation, `sample-svc` in this case.
+
 When `sample-svc` starts failing, the weights will be switched over the other
 backends.
+
+Note that the failover services can be located in the local cluster, or they can
+point to mirror services backed by services in other clusters (through Linkerd's
+multicluster functionality).
 
 ```yaml
 apiVersion: split.smi-spec.io/v1alpha2
@@ -97,7 +78,7 @@ metadata:
     annotations:
         failover.linkerd.io/primary-service: sample-svc
     labels:
-        app.kubernetes.io/managed-by: linkerd-failover
+        failover.linkerd.io/controlled-by: linkerd-failover
 spec:
     service: sample-svc
     backends:
@@ -112,3 +93,27 @@ spec:
         - service: sample-svc-asia1
           weight: 0
 ```
+
+## Implementation details
+
+### Failover criteria
+
+The failover criteria is readiness failures on the targeted Pods. This is
+directly reflected on the Endpoints pointing to those Pods: only when Pods are
+ready, does the `addresses` field of the relevant Endpoints get populated.
+
+### Failover logic
+
+The following describes the logic used to change the `TrafficSplit` weights:
+
+- Whenever the primary backend is ready, all the weight is set to it, setting
+  the weights for all the secondary backends to zero.
+- Whenever the primary backend is not ready, the following rules apply only if
+  there is at least one secondary backend that is ready:
+  - The primary backend’s weight is set to zero.
+  - The weight is distributed equally among all the secondary backends that
+    are ready.
+  - Whenever a secondary backend changes its readiness, the weight is
+    redistributed among all the secondary backends that are ready
+- Whenever both the primary and secondaries are all unavailable, the connection
+  will fail at the client-side, as expected.
