@@ -30,7 +30,7 @@ The following Helm values are available:
 - `selector`: determines which `TrafficSplit` instances to consider for
   failover. It defaults to `failover.linkerd.io/controlled-by={{.Release.Name}}`
   (the value refers to the release name used in `helm install`).
-- `logLevel`, `logFormat`: for configuring the operators logging.
+- `logLevel`, `logFormat`: for configuring the operator's logging.
 
 ## Installation
 
