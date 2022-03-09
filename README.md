@@ -20,8 +20,8 @@ their readiness.
 
 ## Requirements
 
-Besides Linkerd and the operator itself, since we make use of the `TrafficSplit`
-CRD, it is required to install the `linkerd-smi` extension.
+- Linkerd `edge-22.3.1` or later
+- Linkerd-smi `v0.2.0` or later
 
 ## Configuration
 

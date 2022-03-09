@@ -49,8 +49,8 @@ with your username and the actual release number).
   match `appVersion`, but may drift apart in the future when there are changes
   to the chart templates but no changes in the underlying `failover` docker
   image.
-- Update the `tag` entry in the `linkerd-failover` chart with the same value you
-  used for `version`.
+- Update the `tag` entry in the `linkerd-failover` chart `values.yaml` file with
+  the same value you used for `version`.
 
 Rules for changes in the `version` entry:
 
@@ -89,7 +89,9 @@ above.
 setup in their local git config.
 
 ```bash
-git checkout main git pull notes=$(. "bin"/_release.sh; extract_release_notes)
+git checkout main
+git pull
+notes=$(. "bin"/_release.sh; extract_release_notes)
 git tag -s -F "$notes" TAG
 git push origin TAG
 ```
