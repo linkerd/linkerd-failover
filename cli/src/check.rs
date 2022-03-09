@@ -98,7 +98,7 @@ pub async fn namespace_check(client: Client) -> (CheckResult, Option<String>) {
                 description,
                 result: CheckStatus::Error,
                 error: Some("Multiple failover namespaces found".into()),
-                hint: Some("resulthttps://github.com/linkerd/linkerd-failover#troubleshooting"),
+                hint: Some("https://github.com/linkerd/linkerd-failover#troubleshooting"),
             },
             None,
         ),
