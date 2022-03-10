@@ -23,7 +23,10 @@ enum OutputMode {
 #[derive(Subcommand)]
 enum Commands {
     /// Output commands to install the failover extension
-    Install,
+    Install {
+        #[clap(long)]
+        ignore_cluster: bool,
+    },
     /// Output commands to uninstall the failover extension
     Uninstall,
     /// Check the failover extension installation for potential problems
@@ -40,12 +43,25 @@ async fn main() -> Result<()> {
     let cli = Cli::parse();
 
     match cli.command {
-        Commands::Install => {
+        Commands::Install { ignore_cluster } => {
+            if !ignore_cluster {
+                let client = cli.client.try_client().await?;
+                if !check::traffic_split_check(client).await.success() {
+                    bail!(
+                        "The Failover extension requires that the SMI extension is installed. Install the SMI extension first by running:
+
+helm repo add linkerd-smi https://linkerd.github.io/linkerd-smi
+helm repo up
+helm install linkerd-smi -n linkerd-smi --create-namespace linkerd-smi/linkerd-smi");
+                }
+            }
             bail!(
                 "Run the following commands to install the Failover extension:
 
-helm repo add linkerd-failover https://linkerd.github.io/linkerd-failover
-helm install linkerd-failover -n linkerd-failover --create-namespace linkerd-failover/linkerd-failover");
+helm repo add linkerd-edge https://helm.linkerd.io/edge
+helm repo up
+
+helm install linkerd-failover -n linkerd-failover --create-namespace --devel linkerd-edge/linkerd-failover");
         }
         Commands::Uninstall => {
             bail!(

@@ -37,6 +37,12 @@ pub struct CheckResult {
     error: Option<String>,
 }
 
+impl CheckResult {
+    pub fn success(&self) -> bool {
+        matches!(self.result, CheckStatus::Success)
+    }
+}
+
 impl Default for CheckStatus {
     fn default() -> CheckStatus {
         CheckStatus::Success
@@ -44,7 +50,7 @@ impl Default for CheckStatus {
 }
 
 pub async fn traffic_split_check(client: Client) -> CheckResult {
-    let api = Api::<CustomResourceDefinition>::all(client.clone());
+    let api = Api::<CustomResourceDefinition>::all(client);
     let description = "TrafficSplit CRD exists";
     match api.get_opt("trafficsplits.split.smi-spec.io").await {
         Ok(Some(_)) => CheckResult {
@@ -68,9 +74,9 @@ pub async fn traffic_split_check(client: Client) -> CheckResult {
 }
 
 pub async fn namespace_check(client: Client) -> (CheckResult, Option<String>) {
+    let api = Api::<Namespace>::all(client);
     let description = "failover extension namespace exists";
     let extension_label = ListParams::default().labels("linkerd.io/extension=failover");
-    let api = Api::<Namespace>::all(client.clone());
     let ns_list = api.list(&extension_label).await;
     match ns_list {
         Ok(ref objs) if objs.items.len() == 1 => {
@@ -115,8 +121,8 @@ pub async fn namespace_check(client: Client) -> (CheckResult, Option<String>) {
 }
 
 pub async fn deploy_check(client: Client, ns: &str) -> CheckResult {
-    let description = "failover controller is healthy";
     let api = Api::<Deployment>::namespaced(client, ns);
+    let description = "failover controller is healthy";
     match api.get_opt("linkerd-failover").await {
         Ok(Some(deploy)) => {
             let has_available_replicas = deploy.status.map_or(false, |status| {
