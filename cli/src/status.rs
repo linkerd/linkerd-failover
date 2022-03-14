@@ -1,6 +1,7 @@
 use anyhow::Result;
 use kube::{api::ListParams, Api, Client, ResourceExt};
 use linkerd_failover_controller::TrafficSplit;
+use prettytable::{cell, format, row, Table};
 use serde::Serialize;
 use std::fmt::Display;
 
@@ -62,20 +63,23 @@ pub async fn status(client: Client, label_selector: &str) -> Result<Vec<TrafficS
 }
 
 pub fn print_status(results: &[TrafficSplitStatus]) {
-    // TODO: Column widths are hardcoded for now; implement proper table formatting.
-    println!(
-        "{:15}\t{:15}\t{:10}\tACTIVE BACKENDS",
-        "NAMESPACE", "TRAFFIC_SPLIT", "STATUS"
-    );
+    let mut table = Table::new();
+    table.add_row(row![
+        "NAMESPACE",
+        "TRAFFIC_SPLIT",
+        "STATUS",
+        "ACTIVE_BACKENDS"
+    ]);
     for result in results.iter() {
-        println!(
-            "{:15}\t{:15}\t{:10}\t{}",
+        table.add_row(row![
             result.namespace,
             result.name,
             result.status,
             result.services.join(", ")
-        );
+        ]);
     }
+    table.set_format(*format::consts::FORMAT_CLEAN);
+    table.printstd();
 }
 
 pub fn json_print_status(results: &[TrafficSplitStatus]) {
