@@ -61,7 +61,8 @@ pub async fn status(client: Client, label_selector: &str) -> Result<Vec<TrafficS
     Ok(statuses)
 }
 
-pub fn print_status(results: Vec<TrafficSplitStatus>) {
+pub fn print_status(results: &[TrafficSplitStatus]) {
+    // TODO: Column widths are hardcoded for now; implement proper table formatting.
     println!(
         "{:15}\t{:15}\t{:10}\tACTIVE BACKENDS",
         "NAMESPACE", "TRAFFIC_SPLIT", "STATUS"
@@ -77,7 +78,7 @@ pub fn print_status(results: Vec<TrafficSplitStatus>) {
     }
 }
 
-pub fn json_print_status(results: Vec<TrafficSplitStatus>) {
+pub fn json_print_status(results: &[TrafficSplitStatus]) {
     serde_json::to_writer_pretty(std::io::stdout(), &results).expect("serialization failed");
     println!();
 }

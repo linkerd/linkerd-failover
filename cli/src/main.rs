@@ -99,8 +99,8 @@ helm uninstall linkerd-failover"
             let client = cli.client.try_client().await?;
             let results = status::status(client, label_selector.as_str()).await?;
             match output {
-                OutputMode::Table => status::print_status(results),
-                OutputMode::Json => status::json_print_status(results),
+                OutputMode::Table => status::print_status(&results),
+                OutputMode::Json => status::json_print_status(&results),
             }
         }
     };
