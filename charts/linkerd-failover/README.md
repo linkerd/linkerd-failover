@@ -1,29 +1,85 @@
 <!-- markdownlint-disable -->
 # linkerd-failover
 
-![Version: 0.1.0](https://img.shields.io/badge/Version-0.1.0-informational?style=flat-square)
+![Version: 0.0.1-edge](https://img.shields.io/badge/Version-0.0.1--edge-informational?style=flat-square)
 ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square)
+![AppVersion: 0.0.1-edge](https://img.shields.io/badge/AppVersion-0.0.1--edge-informational?style=flat-square)
 
 **Homepage:** <https://linkerd.io>
 
-## Linkerd-smi Required
+## Requirements
 
 Besides Linkerd and the operator itself, since we make use of the `TrafficSplit`
 CRD, it is required to install the `linkerd-smi` extension.
 
+## Configuration
+
+The following Helm values are available:
+
+- `selector`: determines which `TrafficSplit` instances to consider for
+  failover.
+- `logLevel`, `logFormat`: for configuring the operators logging.
+
 ## Installation
+
+The SMI extension and the operator are to be installed in the local cluster
+(there where the clients consuming the service are located).
 
 Linkerd-smi installation:
 
 ```console
-helm repo add linderd-smi https://linkerd.github.io/linkerd-smi
+helm repo add linkerd-smi https://linkerd.github.io/linkerd-smi
+helm repo up
 helm install linkerd-smi -n linkerd-smi --create-namespace linkerd-smi/linkerd-smi
 ```
 
 Linkerd-failover installation:
 
 ```console
-helm install linkerd-failover -n linkerd-failover --create-namespace --devel linkerd/linkerd-failover
+# In case you haven't added the linkerd-edge repo already
+helm repo add linkerd-edge https://helm.linkerd.io/edge
+helm repo up
+
+helm install linkerd-failover -n linkerd-failover --create-namespace --devel linkerd-edge/linkerd-failover
+```
+
+## Example
+
+The following `TrafficSplit` serves as the initial state for a failover setup.
+
+Clients should send requests to the apex service `sample-svc`. The primary
+service that will serve these requests is declared through the
+`failover.linkerd.io/primary-service` annotation, `sample-svc` in this case.
+
+When `sample-svc` starts failing, the weights will be switched over the other
+backends.
+
+Note that the failover services can be located in the local cluster, or they can
+point to mirror services backed by services in other clusters (through Linkerd's
+multicluster functionality).
+
+```yaml
+apiVersion: split.smi-spec.io/v1alpha2
+kind: TrafficSplit
+metadata:
+    name: sample-svc
+    annotations:
+        failover.linkerd.io/primary-service: sample-svc
+    labels:
+        failover.linkerd.io/controlled-by: linkerd-failover
+spec:
+    service: sample-svc
+    backends:
+        - service: sample-svc
+          weight: 1
+        - service: sample-svc-central1
+          weight: 0
+        - service: sample-svc-east1
+          weight: 0
+        - service: sample-svc-east2
+          weight: 0
+        - service: sample-svc-asia1
+          weight: 0
 ```
 
 ## Get involved
@@ -52,7 +108,7 @@ Kubernetes: `>=1.20.0-0`
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| image | object | `{"name":"failover","registry":"cr.l5d.io/linkerd","tag":"latest"}` | Docker image |
+| image | object | `{"name":"failover","registry":"cr.l5d.io/linkerd","tag":"0.0.1-edge"}` | Docker image |
 | logFormat | string | `"plain"` | Log format (`plain` or `json`) |
 | logLevel | string | `"linkerd=info,warn"` | Log level |
 | selector | string | `nil` | Determines which `TrafficSplit` instances to consider for failover. If empty, defaults to failover.linkerd.io/controlled-by={{ .Release.Name }} |
