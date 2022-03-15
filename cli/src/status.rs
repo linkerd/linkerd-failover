@@ -1,5 +1,5 @@
+use crate::table::{Column, Table};
 use anyhow::Result;
-use comfy_table::{presets, Table};
 use kube::{api::ListParams, Api, Client, ResourceExt};
 use linkerd_failover_controller::TrafficSplit;
 use serde::Serialize;
@@ -63,23 +63,17 @@ pub async fn status(client: Client, label_selector: &str) -> Result<Vec<TrafficS
 }
 
 pub fn print_status(results: &[TrafficSplitStatus]) {
-    let mut table = Table::new();
-    table.add_row(vec![
-        "NAMESPACE",
-        "TRAFFIC_SPLIT",
-        "STATUS",
-        "ACTIVE_BACKENDS",
-    ]);
-    for result in results.iter() {
-        table.add_row(vec![
-            result.namespace.as_str(),
-            result.name.as_str(),
-            result.status.to_string().as_str(),
-            result.services.join(", ").as_str(),
-        ]);
-    }
-    table.load_preset(presets::NOTHING);
-    println!("{table}");
+    let columns: Vec<Column<TrafficSplitStatus>> = vec![
+        Column::new("NAMESPACE", Box::new(|r| r.namespace.clone())),
+        Column::new("TRAFFIC_SPLIT", Box::new(|r| r.name.clone())),
+        Column::new("STATUS", Box::new(|r| r.status.to_string())),
+        Column::new("ACTIVE_BACKENDS", Box::new(|r| r.services.join(", "))),
+    ];
+    let table = Table {
+        cols: columns,
+        data: results,
+    };
+    print!("{table}");
 }
 
 pub fn json_print_status(results: &[TrafficSplitStatus]) {
