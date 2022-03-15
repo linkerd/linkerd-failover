@@ -104,10 +104,11 @@ pub(super) async fn update(target: ObjectRef<TrafficSplit>, ctx: &Ctx) {
     let primary_service = match split
         .annotations()
         .get("failover.linkerd.io/primary-service")
+        .or_else(|| split.spec.backends.first().map(|backend| &backend.service))
     {
         Some(name) => name,
         None => {
-            tracing::info!("trafficsplit is missing the `failover.linkerd.io/primary-service` annotation; skipping");
+            tracing::info!("trafficsplit has no backends; skipping");
             return;
         }
     };
