@@ -9,6 +9,7 @@ license = "Apache-2.0"
 anyhow = "1"
 clap = { version = "3", default-features = false, features = ["derive", "env", "std"] }
 k8s-openapi = { version = "0.14", default-features = false, features = ["v1_20"] }
+linkerd-failover-controller = { path = "../controller" }
 serde = "1"
 serde_json = "1"
 

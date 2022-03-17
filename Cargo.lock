@@ -709,6 +709,7 @@ dependencies = [
  "k8s-openapi",
  "kube",
  "kubert",
+ "linkerd-failover-controller",
  "serde",
  "serde_json",
  "tokio",

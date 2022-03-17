@@ -1,6 +1,6 @@
 use anyhow::{bail, Result};
 use clap::{ArgEnum, Parser, Subcommand};
-use linkerd_failover_cli::check;
+use linkerd_failover_cli::{check, status};
 
 #[derive(Parser)]
 #[clap(name = "linkerd-failover", author, version, about, long_about = None)]
@@ -33,6 +33,17 @@ enum Commands {
     Check {
         #[clap(long)]
         pre: bool,
+        #[clap(arg_enum, short, long, default_value = "table")]
+        output: OutputMode,
+    },
+    /// Get the current status of failovers in the cluster
+    Status {
+        #[clap(
+            short = 'l',
+            long = "selector",
+            default_value = "failover.linkerd.io/controlled-by"
+        )]
+        label_selector: String,
         #[clap(arg_enum, short, long, default_value = "table")]
         output: OutputMode,
     },
@@ -79,6 +90,17 @@ helm uninstall linkerd-failover"
             };
             if !success {
                 std::process::exit(1);
+            }
+        }
+        Commands::Status {
+            ref output,
+            label_selector,
+        } => {
+            let client = cli.client.try_client().await?;
+            let results = status::status(client, label_selector.as_str()).await?;
+            match output {
+                OutputMode::Table => status::print_status(&results),
+                OutputMode::Json => status::json_print_status(&results),
             }
         }
     };
