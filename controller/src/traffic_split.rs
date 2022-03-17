@@ -2,7 +2,7 @@ use super::Ctx;
 use futures::prelude::*;
 use kube::{
     api::{Api, Patch, PatchParams},
-    runtime::{reflector::ObjectRef, watcher::Event},
+    runtime::{events, reflector::ObjectRef, watcher::Event},
     ResourceExt,
 };
 use tokio::{sync::mpsc, time};
@@ -39,6 +39,7 @@ pub struct Backend {
 pub struct FailoverUpdate {
     pub target: ObjectRef<TrafficSplit>,
     pub backends: Vec<Backend>,
+    pub primary_active: bool,
 }
 
 /// Reads from `patches` and patches traffic split resources.
@@ -152,7 +153,11 @@ pub(super) async fn update(target: ObjectRef<TrafficSplit>, ctx: &Ctx) {
         return;
     }
 
-    let update = FailoverUpdate { target, backends };
+    let update = FailoverUpdate {
+        target,
+        backends,
+        primary_active,
+    };
     if ctx.patches.send(update).await.is_err() {
         tracing::error!("dropping update because the channel is closed");
     }
@@ -166,17 +171,44 @@ async fn patch(
     client: kube::Client,
     params: &PatchParams,
     timeout: time::Duration,
-    FailoverUpdate { target, backends }: FailoverUpdate,
+    FailoverUpdate {
+        target,
+        backends,
+        primary_active,
+    }: FailoverUpdate,
 ) {
-    let namespace = target.namespace.expect("namespace must be set");
-    let api = Api::<TrafficSplit>::namespaced(client, &namespace);
-    let name = target.name;
+    let namespace = target.namespace.as_ref().expect("namespace must be set");
+    let api = Api::<TrafficSplit>::namespaced(client.clone(), namespace);
+    let name = &target.name;
     tracing::debug!("patching trafficsplit");
 
-    let patch = mk_patch(&name, &backends);
+    let event_reporter = events::Reporter {
+        controller: "linkerd-failover".to_string(),
+        instance: None,
+    };
+    let event_recorder = events::Recorder::new(client, event_reporter, target.clone().into());
+    let reason = if primary_active {
+        format!("trafficsplit/{} switching traffic to primary", name)
+    } else {
+        format!("trafficsplit/{} failing over to fallbacks", name)
+    };
+    if let Err(error) = event_recorder
+        .publish(events::Event {
+            type_: events::EventType::Normal,
+            reason,
+            note: None,
+            action: String::new(),
+            secondary: None,
+        })
+        .await
+    {
+        tracing::error!(%error, "failed to record event");
+    }
+
+    let patch = mk_patch(name, &backends);
     tracing::trace!(?patch);
 
-    match time::timeout(timeout, api.patch(&name, params, &Patch::Merge(patch))).await {
+    match time::timeout(timeout, api.patch(name, params, &Patch::Merge(patch))).await {
         Ok(Ok(_)) => tracing::trace!("patched trafficsplit"),
         Err(_) => tracing::warn!(?timeout, "failed to patch traffic split"),
         Ok(Err(error)) => {
