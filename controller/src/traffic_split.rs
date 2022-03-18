@@ -7,6 +7,8 @@ use kube::{
 };
 use tokio::{sync::mpsc, time};
 
+const FAILOVER: &str = "Failover";
+
 /// The `split.smi-spec.io/TrafficSplit` custom resource
 #[derive(
     Clone,
@@ -187,7 +189,7 @@ async fn patch(
         instance: None,
     };
     let event_recorder = events::Recorder::new(client, event_reporter, target.clone().into());
-    let reason = if primary_active {
+    let description = if primary_active {
         format!("trafficsplit/{} switching traffic to primary", name)
     } else {
         format!("trafficsplit/{} failing over to fallbacks", name)
@@ -195,9 +197,9 @@ async fn patch(
     if let Err(error) = event_recorder
         .publish(events::Event {
             type_: events::EventType::Normal,
-            reason,
-            note: None,
-            action: String::new(),
+            reason: FAILOVER.to_string(),
+            note: Some(description),
+            action: FAILOVER.to_string(),
             secondary: None,
         })
         .await
