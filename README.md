@@ -61,7 +61,9 @@ The following `TrafficSplit` serves as the initial state for a failover setup.
 
 Clients should send requests to the apex service `sample-svc`. The primary
 service that will serve these requests is declared through the
-`failover.linkerd.io/primary-service` annotation, `sample-svc` in this case.
+`failover.linkerd.io/primary-service` annotation, `sample-svc` in this case. If
+the `TrafficSplit` does not include this annotation, it will treat the first
+backend as the primary service.
 
 When `sample-svc` starts failing, the weights will be switched over the other
 backends.
