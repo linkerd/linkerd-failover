@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::fmt::{Display, Write};
 
 const PADDING: usize = 3;
 pub struct Column<T> {
@@ -17,10 +17,12 @@ impl<T> Column<T> {
     }
 
     fn width(&self, rows: &[T]) -> usize {
-        match rows.iter().map(|t| (self.value)(t).len()).max() {
-            Some(width) => self.header.len().max(width) + PADDING,
-            None => self.header.len() + PADDING,
-        }
+        let width = rows
+            .iter()
+            .map(|t| (self.value)(t).len())
+            .max()
+            .unwrap_or(0);
+        self.header.len().max(width) + PADDING
     }
 }
 
@@ -35,14 +37,14 @@ impl<'a, T> Display for Table<'a, T> {
         for (col, width) in self.cols.iter().zip(&column_widths) {
             write!(f, "{:width$}", col.header, width = width)?;
         }
-        writeln!(f)?;
+        f.write_char('\n')?;
         // Print data
         for t in self.data {
             for (col, width) in self.cols.iter().zip(&column_widths) {
                 let value = (col.value)(t);
                 write!(f, "{:width$}", value, width = width)?;
             }
-            writeln!(f)?;
+            f.write_char('\n')?;
         }
         Ok(())
     }
