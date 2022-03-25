@@ -184,16 +184,44 @@ async fn patch(
     let name = &target.name;
     tracing::debug!("patching trafficsplit");
 
+    let patch = mk_patch(name, &backends);
+    tracing::trace!(?patch);
+
+    match time::timeout(timeout, api.patch(name, params, &Patch::Merge(patch))).await {
+        Ok(Ok(_)) => tracing::trace!("patched trafficsplit"),
+        Err(_) => tracing::warn!(?timeout, "failed to patch traffic split"),
+        Ok(Err(error)) => {
+            // TODO requeue?
+            tracing::warn!(%error, "failed to patch traffic split");
+        }
+    }
+
+    record_event(client, target.clone(), primary_active).await;
+}
+
+fn mk_patch(name: &str, backends: &[Backend]) -> serde_json::Value {
+    serde_json::json!({
+        "apiVersion": "split.smi-spec.io/v1alpha2",
+        "kind": "TrafficSplit",
+        "name": name,
+        "spec": {
+            "backends": backends
+        }
+    })
+}
+
+async fn record_event(client: kube::Client, target: ObjectRef<TrafficSplit>, primary_active: bool) {
     let event_reporter = events::Reporter {
         controller: "linkerd-failover".to_string(),
         instance: None,
     };
-    let event_recorder = events::Recorder::new(client, event_reporter, target.clone().into());
     let description = if primary_active {
-        format!("trafficsplit/{} switching traffic to primary", name)
+        format!("trafficsplit/{} switching traffic to primary", &target.name)
     } else {
-        format!("trafficsplit/{} failing over to fallbacks", name)
+        format!("trafficsplit/{} failing over to fallbacks", &target.name)
     };
+    let event_recorder = events::Recorder::new(client, event_reporter, target.into());
+
     if let Err(error) = event_recorder
         .publish(events::Event {
             type_: events::EventType::Normal,
@@ -206,27 +234,4 @@ async fn patch(
     {
         tracing::error!(%error, "failed to record event");
     }
-
-    let patch = mk_patch(name, &backends);
-    tracing::trace!(?patch);
-
-    match time::timeout(timeout, api.patch(name, params, &Patch::Merge(patch))).await {
-        Ok(Ok(_)) => tracing::trace!("patched trafficsplit"),
-        Err(_) => tracing::warn!(?timeout, "failed to patch traffic split"),
-        Ok(Err(error)) => {
-            // TODO requeue?
-            tracing::warn!(%error, "failed to patch traffic split");
-        }
-    }
-}
-
-fn mk_patch(name: &str, backends: &[Backend]) -> serde_json::Value {
-    serde_json::json!({
-        "apiVersion": "split.smi-spec.io/v1alpha2",
-        "kind": "TrafficSplit",
-        "name": name,
-        "spec": {
-            "backends": backends
-        }
-    })
 }
