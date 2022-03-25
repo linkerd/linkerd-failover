@@ -8,6 +8,7 @@ use kube::{
 use tokio::{sync::mpsc, time};
 
 const FAILOVER: &str = "Failover";
+const CONTROLLER_NAME: &str = "linkerd-failover";
 
 /// The `split.smi-spec.io/TrafficSplit` custom resource
 #[derive(
@@ -212,7 +213,7 @@ fn mk_patch(name: &str, backends: &[Backend]) -> serde_json::Value {
 
 async fn record_event(client: kube::Client, target: ObjectRef<TrafficSplit>, primary_active: bool) {
     let event_reporter = events::Reporter {
-        controller: "linkerd-failover".to_string(),
+        controller: CONTROLLER_NAME.to_string(),
         instance: None,
     };
     let description = if primary_active {
