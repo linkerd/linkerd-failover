@@ -174,6 +174,7 @@ mod tests {
         assert_ready_eq!(
             patches.poll_next(),
             Some(traffic_split::FailoverUpdate {
+                primary_active: true,
                 target: ObjectRef::new("ts0").within("default"),
                 backends: vec![
                     backend("primary", 1),
@@ -215,6 +216,7 @@ mod tests {
         assert_ready_eq!(
             patches.poll_next(),
             Some(traffic_split::FailoverUpdate {
+                primary_active: false,
                 target: ObjectRef::new("ts0").within("default"),
                 backends: vec![
                     backend("primary", 0),
