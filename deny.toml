@@ -29,7 +29,8 @@ exceptions = []
 
 [bans]
 multiple-versions = "deny"
-wildcards = "deny"
+# Wildcard dependencies are used for all workspace-local crates.
+wildcards = "allow"
 highlight = "all"
 deny = []
 skip-tree = []
