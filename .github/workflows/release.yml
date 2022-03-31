@@ -40,7 +40,7 @@ jobs:
     - name: Set up Helm
       uses: azure/setup-helm@a517f2ff6560563a369e16ca7c7d136b6164423f
     - name: Create cluster
-      uses: AbsaOSS/k3d-action@1a95121fcb2af971e8efbea007a8fd976639da02
+      uses: AbsaOSS/k3d-action@b176c2a6dcae72e3e64e3e4d61751904ec314002
       with:
         cluster-name: testing
     - name: Install linkerd
