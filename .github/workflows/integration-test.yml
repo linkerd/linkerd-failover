@@ -16,7 +16,7 @@ jobs:
     timeout-minutes: 10
     steps:
     - name: Checkout code
-      uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579
+      uses: actions/checkout@dcd71f646680f2efd8db4afa5ad64fdcba30e748
     - name: Docker build
       uses: ./.github/actions/docker-build
       with:
@@ -40,7 +40,7 @@ jobs:
     needs: [docker-build]
     steps:
     - name: Checkout code
-      uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579
+      uses: actions/checkout@dcd71f646680f2efd8db4afa5ad64fdcba30e748
     - name: Set up Helm
       uses: azure/setup-helm@a517f2ff6560563a369e16ca7c7d136b6164423f
     - name: Create cluster
