@@ -17,6 +17,6 @@ jobs:
       - uses: actions/checkout@dcd71f646680f2efd8db4afa5ad64fdcba30e748
       - run: bin/helm-docs-diff
       - name: Set up Helm
-        uses: azure/setup-helm@a517f2ff6560563a369e16ca7c7d136b6164423f
+        uses: azure/setup-helm@217bf70cbd2e930ba2e81ba7e1de2f7faecc42ba
       - name: Helm lint
         run: helm lint charts/*
