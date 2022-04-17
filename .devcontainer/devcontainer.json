@@ -1,6 +1,6 @@
 {
     "name": "linkerd-failover.dev",
-    "image": "ghcr.io/linkerd/dev:v9",
+    "image": "ghcr.io/linkerd/dev:v11",
     "extensions": [
         "DavidAnson.vscode-markdownlint",
         "matklad.rust-analyzer",
