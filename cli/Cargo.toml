@@ -14,17 +14,17 @@ serde = "1"
 serde_json = "1"
 
 [dependencies.kube]
-version = "0.70"
+version = "0.71"
 default-features = false
 features = [
     "client",
     "derive",
-    "native-tls",
+    "openssl-tls",
     "runtime",
 ]
 
 [dependencies.kubert]
-version = "0.5"
+version = "0.6"
 default-features = false
 features = [
     "clap",
