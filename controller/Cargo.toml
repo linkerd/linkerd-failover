@@ -17,12 +17,12 @@ tokio-stream = "0.1"
 tracing = "0.1"
 
 [dependencies.kube]
-version = "0.70"
+version = "0.71"
 default-features = false
 features = [
     "client",
     "derive",
-    "native-tls",
+    "openssl-tls",
     "runtime",
 ]
 
