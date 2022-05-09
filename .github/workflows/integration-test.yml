@@ -60,6 +60,7 @@ jobs:
       run: |
         curl -sL https://run.linkerd.io/install-edge | sh
         export PATH=$PATH:~/.linkerd2/bin
+        linkerd install --crds | kubectl apply -f -
         linkerd install | kubectl apply -f -
         linkerd check
     - name: Install linkerd-smi
