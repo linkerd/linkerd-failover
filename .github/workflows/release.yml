@@ -130,7 +130,7 @@ jobs:
     - name: Set up Helm
       uses: azure/setup-helm@217bf70cbd2e930ba2e81ba7e1de2f7faecc42ba
     - name: Log into GCP
-      uses: 'google-github-actions/auth@b258a9f230b36c9fa86dfaa43d1906bd76399edb'
+      uses: 'google-github-actions/auth@dafc92490a98acbdec38e6eb649f05d55e632447'
       with:
         credentials_json: ${{ secrets.LINKERD_SITE_TOKEN }}
     - name: Set up Cloud SDK
