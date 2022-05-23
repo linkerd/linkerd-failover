@@ -1,10 +1,10 @@
 {
     "name": "linkerd-failover.dev",
-    "image": "ghcr.io/linkerd/dev:v11",
+    "image": "ghcr.io/linkerd/dev:v12",
     "extensions": [
         "DavidAnson.vscode-markdownlint",
-        "matklad.rust-analyzer",
         "NathanRidley.autotrim",
+        "rust-analyzer.rust-analyzer",
         "samverschueren.final-newline",
         "tamasfe.even-better-toml",
     ],
