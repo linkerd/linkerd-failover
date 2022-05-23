@@ -1,4 +1,4 @@
-ARG RUST_VERSION=1.59.0
+ARG RUST_VERSION=1.60.0
 ARG RUST_IMAGE=docker.io/library/rust:${RUST_VERSION}
 ARG RUNTIME_IMAGE=gcr.io/distroless/cc
 
@@ -13,11 +13,11 @@ WORKDIR /build
 COPY Cargo.toml Cargo.lock .
 COPY controller /build/
 RUN --mount=type=cache,target=target \
-    --mount=type=cache,from=rust:1.59.0,source=/usr/local/cargo,target=/usr/local/cargo \
+    --mount=type=cache,from=rust:1.60.0,source=/usr/local/cargo,target=/usr/local/cargo \
     cargo fetch --locked
 # XXX(ver) we can't easily cross-compile against openssl, so use rustls on arm.
 RUN --mount=type=cache,target=target \
-    --mount=type=cache,from=rust:1.59.0,source=/usr/local/cargo,target=/usr/local/cargo \
+    --mount=type=cache,from=rust:1.60.0,source=/usr/local/cargo,target=/usr/local/cargo \
     cargo build --frozen --release --target=armv7-unknown-linux-gnueabihf \
         --package=linkerd-failover-controller --no-default-features --features="rustls" && \
     mv target/armv7-unknown-linux-gnueabihf/release/linkerd-failover-controller /tmp/
