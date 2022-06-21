@@ -20,7 +20,7 @@ their readiness.
 
 ## Requirements
 
-- Linkerd `edge-22.3.1` or later
+- Linkerd `stable-2.11.2` or later (or, for edge releases, `edge-22.3.1` or later)
 - Linkerd-smi `v0.2.0` or later
 
 ## Configuration
