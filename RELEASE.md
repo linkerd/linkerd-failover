@@ -43,7 +43,7 @@ with your username and the actual release number).
 ### 2. Update the Helm charts versions
 
 - Update the `appVersion` in the `Chart.yaml` files for the `linkerd-failover`
-  and `linkerd-failover` charts. `appVersion` should match the actual
+  and `linkerd-failover-tests` charts. `appVersion` should match the actual
   version/tag.
 - Also update their `version` entry. During the first few releases this will
   match `appVersion`, but may drift apart in the future when there are changes

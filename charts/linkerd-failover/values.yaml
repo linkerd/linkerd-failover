@@ -8,7 +8,7 @@ logFormat: plain
 image:
   registry: cr.l5d.io/linkerd
   name: failover
-  tag: 0.0.1-edge
+  tag: 1.0.0
 
 # -- Determines which `TrafficSplit` instances to consider for failover. If
 # empty, defaults to failover.linkerd.io/controlled-by={{ .Release.Name }}
