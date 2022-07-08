@@ -107,6 +107,11 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b
+    - name: Build CLI
+      run: |
+        cargo fetch
+        cargo build --frozen --target=x86_64-unknown-linux-gnu --release --package=linkerd-failover-cli
+        mv target/x86_64-unknown-linux-gnu/release/linkerd-failover-cli linkerd-failover-cli-linux-amd64
     - name: Extract release notes
       run: |
         . bin/_release.sh
@@ -118,6 +123,8 @@ jobs:
         draft: false
         prerelease: false
         body_path: NOTES.md
+        files: |
+          ./linkerd-failover-cli-linux-amd64
 
   chart-deploy:
     name: Helm chart deploy
