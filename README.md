@@ -21,7 +21,8 @@ their readiness.
 ## Requirements
 
 - Linkerd `stable-2.11.2` or later (or, for edge releases, `edge-22.3.1` or later)
-- Linkerd-smi `v0.2.0` or later
+- Linkerd-smi `v0.2.0` or later (required as of the upcoming `stable-2.12.0` and
+  as of `edge-22.3.1`)
 
 ## Configuration
 
@@ -33,6 +34,11 @@ The following Helm values are available:
 - `logLevel`, `logFormat`: for configuring the operator's logging.
 
 ## Installation
+
+Note the SMI extension CRD is included in Linkerd 2.11.x so you can skip this
+step for those versions. As of the upcoming `stable-2.12.0` version and as of
+the `edge-22.3.1` version, it's no longer included so you need to install it as
+described here.
 
 The SMI extension and the operator are to be installed in the local cluster
 (where the clients consuming the service are located).
