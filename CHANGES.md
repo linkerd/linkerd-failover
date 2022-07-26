@@ -1,6 +1,6 @@
 # Changes
 
-## 1.0.0
+## 0.1.0
 
 Even though 0.0.1-edge was stable enough, this is officially the first stable
 release!

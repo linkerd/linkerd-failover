@@ -1,9 +1,9 @@
 <!-- markdownlint-disable -->
 # linkerd-failover
 
-![Version: 1.0.0](https://img.shields.io/badge/Version-1.0.0-informational?style=flat-square)
+![Version: 0.1.0](https://img.shields.io/badge/Version-0.1.0-informational?style=flat-square)
 ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square)
-![AppVersion: 1.0.0](https://img.shields.io/badge/AppVersion-1.0.0-informational?style=flat-square)
+![AppVersion: 0.1.0](https://img.shields.io/badge/AppVersion-0.1.0-informational?style=flat-square)
 
 **Homepage:** <https://linkerd.io>
 
@@ -108,7 +108,7 @@ Kubernetes: `>=1.20.0-0`
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| image | object | `{"name":"failover","registry":"cr.l5d.io/linkerd","tag":"1.0.0"}` | Docker image |
+| image | object | `{"name":"failover","registry":"cr.l5d.io/linkerd","tag":"0.1.0"}` | Docker image |
 | logFormat | string | `"plain"` | Log format (`plain` or `json`) |
 | logLevel | string | `"linkerd=info,warn"` | Log level |
 | selector | string | `nil` | Determines which `TrafficSplit` instances to consider for failover. If empty, defaults to failover.linkerd.io/controlled-by={{ .Release.Name }} |
