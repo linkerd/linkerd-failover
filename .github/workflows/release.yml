@@ -153,7 +153,7 @@ jobs:
         helm repo index --url https://helm.linkerd.io/edge/ --merge "target/helm/index-pre-failover-${{ github.ref_name }}".yaml target/helm
         gsutil rsync target/helm gs://helm.linkerd.io/edge
     - name: Stable Helm chart creation and upload
-      if: !contains(github.ref, '-edge')
+      if: ${{ !contains(github.ref, '-edge') }}
       run: |
         mkdir -p target/helm
         helm --app-version "${{ github.ref_name }}" -d target/helm package charts/linkerd-failover
