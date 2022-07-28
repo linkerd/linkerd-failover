@@ -54,11 +54,15 @@ helm install linkerd-smi -n linkerd-smi --create-namespace linkerd-smi/linkerd-s
 Linkerd-failover installation:
 
 ```console
-# In case you haven't added the linkerd-edge repo already
+# For edge releases
 helm repo add linkerd-edge https://helm.linkerd.io/edge
 helm repo up
-
 helm install linkerd-failover -n linkerd-failover --create-namespace --devel linkerd-edge/linkerd-failover
+
+# For stable releases
+helm repo add linkerd https://helm.linkerd.io/stable
+helm repo up
+helm install linkerd-failover -n linkerd-failover --create-namespace linkerd/linkerd-failover
 ```
 
 ## Example
