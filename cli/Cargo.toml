@@ -19,7 +19,7 @@ default-features = false
 features = [
     "client",
     "derive",
-    "openssl-tls",
+    "native-tls",
     "runtime",
 ]
 
