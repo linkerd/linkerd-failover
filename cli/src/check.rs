@@ -87,7 +87,7 @@ pub async fn namespace_check(client: Client) -> (CheckResult, Option<String>) {
                     result: CheckStatus::Success,
                     ..Default::default()
                 },
-                Some(ns.name()),
+                Some(ns.name_any()),
             )
         }
         Ok(ref objs) if objs.items.is_empty() => (
