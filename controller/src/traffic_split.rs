@@ -32,13 +32,15 @@ pub struct TrafficSplitSpec {
 }
 
 /// A [`TrafficSplit`] backend
-#[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize, schemars::JsonSchema)]
+#[derive(
+    Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, schemars::JsonSchema,
+)]
 pub struct Backend {
     pub service: String,
     pub weight: u32,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct FailoverUpdate {
     pub target: ObjectRef<TrafficSplit>,
     pub backends: Vec<Backend>,
