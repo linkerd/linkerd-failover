@@ -22,7 +22,7 @@ jobs:
     timeout-minutes: 10
     runs-on: ubuntu-latest
     container:
-      image: docker://rust:1.60.0
+      image: docker://rust:1.63.0
     steps:
       - uses: olix0r/cargo-action-fmt@ed3530f0739c46ffa0dd983f8746b8c4a3d0a01c
       - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b
