@@ -52,7 +52,7 @@ pub async fn status(client: Client, label_selector: &str) -> Result<Vec<TrafficS
                 };
                 TrafficSplitStatus {
                     namespace: ts.namespace().expect("TrafficSplits must be namespaced"),
-                    name: ts.name(),
+                    name: ts.name_any(),
                     status,
                     services: active_backends,
                 }
