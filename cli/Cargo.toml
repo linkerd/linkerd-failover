@@ -14,7 +14,7 @@ serde = "1"
 serde_json = "1"
 
 [dependencies.kube]
-version = "0.74"
+version = "0.75"
 default-features = false
 features = [
     "client",
