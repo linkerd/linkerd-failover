@@ -9,25 +9,25 @@ use tokio::{sync::mpsc, time};
 use tracing::Instrument;
 
 #[derive(Parser)]
-#[clap(version)]
+#[command(version)]
 struct Args {
-    #[clap(
+    #[arg(
         long,
         env = "LINKERD_FAILOVER_LOG_LEVEL",
         default_value = "linkerd=info,warn"
     )]
     log_level: kubert::LogFilter,
 
-    #[clap(long, default_value = "plain")]
+    #[arg(long, default_value = "plain")]
     log_format: kubert::LogFormat,
 
-    #[clap(flatten)]
+    #[command(flatten)]
     client: kubert::ClientArgs,
 
-    #[clap(flatten)]
+    #[command(flatten)]
     admin: kubert::AdminArgs,
 
-    #[clap(long, default_value = "failover.linkerd.io/controlled-by", short = 'l')]
+    #[arg(long, default_value = "failover.linkerd.io/controlled-by", short = 'l')]
     selector: String,
 }
 
@@ -48,8 +48,8 @@ async fn main() -> Result<()> {
         .build()
         .await?;
 
-    // Create cached watches for traffic splits and endpoints. This enable us to watch for updates
-    // and to lookup previously-observed objects.
+    // Create cached watches for traffic splits and endpoints. This enables us to watch for
+    // updates and to lookup previously-observed objects.
     let (endpoints, endpoints_events) = runtime.cache_all(ListParams::default());
     let (traffic_splits, traffic_split_events) =
         runtime.cache_all(ListParams::default().labels(&selector));

@@ -7,29 +7,29 @@ license = "Apache-2.0"
 
 [dependencies]
 anyhow = "1"
-clap = { version = "3", default-features = false, features = ["derive", "env", "std"] }
-k8s-openapi = { version = "0.15", default-features = false, features = ["v1_20"] }
 linkerd-failover-controller = { path = "../controller" }
 serde = "1"
 serde_json = "1"
 
-[dependencies.kube]
-version = "0.74"
+[dependencies.clap]
+version = "4"
 default-features = false
-features = [
-    "client",
-    "derive",
-    "openssl-tls",
-    "runtime",
-]
+features = ["color", "derive", "env", "help", "std", "suggestions"]
+
+[dependencies.k8s-openapi]
+version = "0.16"
+default-features = false
+features = ["v1_21"]
+
+[dependencies.kube]
+version = "0.75"
+default-features = false
+features = ["client", "derive", "openssl-tls", "runtime"]
 
 [dependencies.kubert]
-version = "0.9"
+version = "0.11"
 default-features = false
-features = [
-    "clap",
-    "runtime",
-]
+features = ["clap", "runtime"]
 
 [dependencies.tokio]
 version = "1"
