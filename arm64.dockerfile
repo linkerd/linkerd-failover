@@ -11,7 +11,10 @@ RUN apt-get update && \
 ENV CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc
 WORKDIR /build
 COPY Cargo.toml Cargo.lock .
-COPY controller /build/
+RUN mkdir -p ./cli/src && \
+    echo 'fn main() {}' > ./cli/src/main.rs
+COPY cli/Cargo.toml ./cli/Cargo.toml
+COPY controller ./controller
 RUN --mount=type=cache,target=target \
     --mount=type=cache,from=rust:1.63.0,source=/usr/local/cargo,target=/usr/local/cargo \
     cargo fetch --locked
