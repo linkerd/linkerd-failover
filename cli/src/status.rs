@@ -1,5 +1,5 @@
 use crate::table::{Column, Table};
-use anyhow::Result;
+use anyhow::{Context, Result};
 use kube::{api::ListParams, Api, Client, ResourceExt};
 use linkerd_failover_controller::TrafficSplit;
 use serde::Serialize;
@@ -33,7 +33,10 @@ impl Display for FailoverStatus {
 pub async fn status(client: Client, label_selector: &str) -> Result<Vec<TrafficSplitStatus>> {
     let api = Api::<TrafficSplit>::all(client);
     let list_params = ListParams::default().labels(label_selector);
-    let traffic_splits = api.list(&list_params).await?;
+    let traffic_splits = api
+        .list(&list_params)
+        .await
+        .context("failed to list TrafficSplits")?;
     let statuses = traffic_splits
         .items
         .into_iter()

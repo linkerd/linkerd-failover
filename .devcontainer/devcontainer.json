@@ -4,7 +4,7 @@
     "extensions": [
         "DavidAnson.vscode-markdownlint",
         "NathanRidley.autotrim",
-        "rust-analyzer.rust-analyzer",
+        "rust-lang.rust-analyzer",
         "samverschueren.final-newline",
         "tamasfe.even-better-toml",
     ],
