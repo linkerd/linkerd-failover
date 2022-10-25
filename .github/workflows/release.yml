@@ -12,13 +12,20 @@ env:
   DOCKER_REGISTRY: ghcr.io/linkerd
 
 jobs:
+  docker-build:
+    runs-on: ubuntu-20.04
+    timeout-minutes: 10
+    container: ghcr.io/linkerd/dev:v32-rust
+    steps:
+    - run: apt update && apt install -y docker.io
+    - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
+    - run: just controller-docker # TODO --push
 
   docker-build:
     runs-on: ubuntu-20.04
     timeout-minutes: 10
     steps:
-    - name: Checkout code
-      uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
+    - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
     - name: Docker build
       uses: ./.github/actions/docker-build
       with:
@@ -33,17 +40,14 @@ jobs:
   integration-tests:
     runs-on: ubuntu-20.04
     timeout-minutes: 10
-    needs: [docker-build]
+    needs: docker-build
     steps:
-    - name: Checkout code
-      uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
-    - name: Set up Helm
-      uses: azure/setup-helm@b5b231a831f96336bbfeccc1329990f0005c5bb1
-    - name: Create cluster
-      uses: AbsaOSS/k3d-action@b176c2a6dcae72e3e64e3e4d61751904ec314002
+    - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
+    - uses: azure/setup-helm@b5b231a831f96336bbfeccc1329990f0005c5bb1
+    - uses: AbsaOSS/k3d-action@b176c2a6dcae72e3e64e3e4d61751904ec314002
       with:
         cluster-name: testing
-    - name: Install linkerd
+    - name: Install latest Linkerd edge release
       run: |
         curl -sL https://run.linkerd.io/install-edge | sh
         export PATH=$PATH:~/.linkerd2/bin

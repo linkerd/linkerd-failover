@@ -85,13 +85,8 @@ instructions below to properly create and push the release tag from the
 appropriate branch. Replace `TAG` below with the `appVersion` you used in step 2
 above.
 
-**Note**: This will create a GPG-signed tag, so users must have GPG signing
-setup in their local git config.
-
 ```bash
 git checkout main
 git pull
-notes=$(. "bin"/_release.sh; extract_release_notes)
 git tag -s -F "$notes" TAG
 git push origin TAG
-```

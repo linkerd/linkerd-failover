@@ -6,74 +6,64 @@ permissions:
   contents: read
 
 env:
-  DOCKER_REGISTRY: ghcr.io/linkerd
-  ARCHIVES: /home/runner/archives
+  # A fake registry to ensure we're using the test images.
+  DOCKER_REGISTRY: failover.test.l5d.io/linkerd
 
 jobs:
-
-  docker-build:
+  controller-build:
     runs-on: ubuntu-20.04
     timeout-minutes: 10
+    container: ghcr.io/linkerd/dev:v32-rust
     steps:
-    - name: Checkout code
-      uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
-    - name: Docker build
-      uses: ./.github/actions/docker-build
+    - run: apt update && apt install -y docker.io
+    - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
+    - run: |
+        just controller-docker --output - \
+          --tag='${{ env.DOCKER_REGISTRY }}/failover:git-${{ github.sha }}' \
+          > target/docker/failover.tar
+    - uses: actions/upload-artifact@3cea5372237819ed00197afe530f5a7ea3e805c8
       with:
-        docker-registry: ${{ env.DOCKER_REGISTRY }}
-        docker-tag: ${{ github.sha }}
-        docker-target: linux-amd64
-        component: failover
-    - name: Create artifact with image
-      run: |
-        mkdir -p ${{ env.ARCHIVES }}
-        docker save "${{ env.DOCKER_REGISTRY}}/failover:${{ github.sha }}" > ${{ env.ARCHIVES }}/failover.tar
-    - name: Upload artifact
-      uses: actions/upload-artifact@3cea5372237819ed00197afe530f5a7ea3e805c8
-      with:
-        name: image-archives
-        path: ${{ env.ARCHIVES }}
+        name: images
+        path: target/images
 
   install-test:
     runs-on: ubuntu-20.04
     timeout-minutes: 10
-    needs: [docker-build]
+    needs: docker-build
     steps:
-    - name: Checkout code
-      uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
-    - name: Set up Helm
-      uses: azure/setup-helm@b5b231a831f96336bbfeccc1329990f0005c5bb1
-    - name: Create cluster
-      uses: AbsaOSS/k3d-action@b176c2a6dcae72e3e64e3e4d61751904ec314002
+    - uses: actions/download-artifact@9782bd6a9848b53b110e712e20e42d89988822b7
       with:
-        cluster-name: testing
-    - name: Download image
-      uses: actions/download-artifact@9782bd6a9848b53b110e712e20e42d89988822b7
-      with:
-        name: image-archives
-        path: image-archives
-    - name: Load image
-      run: docker load < image-archives/failover.tar
-    - name: Import image
-      run: k3d image import image-archives/failover.tar -c testing
-    - name: Install linkerd
+        name: images
+        path: ${{ runner.temp }}/images
+
+    - uses: AbsaOSS/k3d-action@b176c2a6dcae72e3e64e3e4d61751904ec314002
+    - run: k3d image import '${{ runner.temp }}/docker/failover.tar'
+
+    - name: Install latest Linkerd edge release
       run: |
         curl -sL https://run.linkerd.io/install-edge | sh
         export PATH=$PATH:~/.linkerd2/bin
         linkerd install --crds | kubectl apply -f -
         linkerd install | kubectl apply -f -
         linkerd check
+
+    - uses: azure/setup-helm@b5b231a831f96336bbfeccc1329990f0005c5bb1
     - name: Install linkerd-smi
       run: |
         helm repo add linkerd-smi https://linkerd.github.io/linkerd-smi
         helm repo up
         helm install linkerd-smi -n linkerd-smi --create-namespace --wait linkerd-smi/linkerd-smi
+
+    - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
     - name: Install current linkerd-failover
       run: |
         helm install linkerd-failover -n linkerd-failover --create-namespace --wait \
           --set image.registry=${{ env.DOCKER_REGISTRY }} \
-          --set image.tag=${{ github.sha }} \
+          --set image.tag=git-${{ github.sha }} \
           charts/linkerd-failover
+
+    # === Tests ===
+
     - name: Test routing to primary
       uses: ./.github/actions/failover-test
       with:
@@ -83,6 +73,7 @@ jobs:
         centralShouldReceiveTraffic: false
         eastReplicas: 1
         eastShouldReceiveTraffic: false
+
     - name: Test failover to secondaries
       uses: ./.github/actions/failover-test
       with:
@@ -92,6 +83,7 @@ jobs:
         centralShouldReceiveTraffic: true
         eastReplicas: 1
         eastShouldReceiveTraffic: true
+
     - name: Test removal of one secondary
       uses: ./.github/actions/failover-test
       with:
@@ -101,6 +93,7 @@ jobs:
         centralShouldReceiveTraffic: false
         eastReplicas: 1
         eastShouldReceiveTraffic: true
+
     - name: Test reestablishment of primary
       uses: ./.github/actions/failover-test
       with:
