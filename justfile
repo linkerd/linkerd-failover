@@ -4,23 +4,19 @@
 export DOCKER_REGISTRY := env_var_or_default("DOCKER_REGISTRY", "test.l5d.io/" + _test-id )
 _test-id := `tr -dc 'a-z0-9' </dev/urandom | fold -w 5 | head -n 1`
 
+image := '{{ DOCKER_REGISTRY }}/failover'
+
 platforms := "linux/amd64"
 
-controller-docker *flags: && controller-image
+build: controller-build
+
+controller-build *flags:
     docker buildx build . \
         --platform '{{ platforms }}' \
-        --tag "$(just controller-image)" \
+        --tag "{{ image }}:$(cargo.just crate-version linkerd-failover-controller)"
         {{ flags }}
 
-controller-image:
-    @-echo '{{ DOCKER_REGISTRY }}/failover:'$(just controller-version)
-
-controller-version:
-    @-cargo metadata --format-version=1 \
-        | jq -r '.packages[] | select(.name == "linkerd-failover-controller") | "v" + .version' \
-        | head -n1
-
-controller-test: _k3d-ready
+controller-test: controller-build _k3d-ready
 
 _k3d-ready:
-    true
+    @-k3d.just ready

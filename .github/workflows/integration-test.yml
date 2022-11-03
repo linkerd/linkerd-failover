@@ -29,7 +29,7 @@ jobs:
   install-test:
     runs-on: ubuntu-20.04
     timeout-minutes: 10
-    needs: docker-build
+    needs: controller-build
     steps:
     - uses: actions/download-artifact@9782bd6a9848b53b110e712e20e42d89988822b7
       with:
