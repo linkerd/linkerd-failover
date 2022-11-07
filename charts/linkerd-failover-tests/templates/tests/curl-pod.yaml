@@ -20,7 +20,7 @@ spec:
 
       for i in $(seq 10); do
         res=$(curl -s http://podinfo.linkerd-failover-tests.svc.cluster.local:9898/)
-        case "$res" in 
+        case "$res" in
           *west*) success_west=true ;;
           *central*) success_central=true ;;
           *east*) success_east=true ;;
