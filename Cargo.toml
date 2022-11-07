@@ -1,5 +1,6 @@
 [workspace]
-members = [
-    "cli",
-    "controller",
-]
+members = ["cli", "controller"]
+
+[profile.release]
+strip = "symbols"
+lto = "fat"
