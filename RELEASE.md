@@ -60,7 +60,7 @@ Rules for changes in the `version` entry:
   change the structure of `values.yaml`
 
 Finally, keep in mind chart version changes require updating the charts README
-files (through `bin/helm-docs`).
+files (through `helm-docs`).
 
 ### 3. Update the release notes
 

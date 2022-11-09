@@ -1,5 +1,14 @@
 name: Release
 
+# TODO(ver) This workflow can ONLY be exercised in the course of publishing a
+# release. This should be changed to exercise the release workflow without
+# publishing artifacts.
+#
+# TODO(ver) Change the versioning scheme so that released versions
+# match the software version of the CLI and controller.
+#
+# TODO(ver) Publish CLI binaries for other platforms (at least macOS).
+
 on:
   push:
     tags:
@@ -8,27 +17,28 @@ on:
 permissions:
   contents: read
 
-env:
-  DOCKER_REGISTRY: ghcr.io/linkerd
-
 jobs:
-
   docker-build:
     runs-on: ubuntu-20.04
+    container: ghcr.io/linkerd/dev:v33-tools
     timeout-minutes: 10
     steps:
-    - name: Checkout code
-      uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
-    - name: Docker build
-      uses: ./.github/actions/docker-build
+    - run: apt update && apt install -y docker.io
+    - uses: docker/setup-qemu-action@27d0a4f181a40b142cce983c5393082c365d1480
+    - uses: docker/setup-buildx-action@94ab11c41e45d028884a99163086648e898eed25
+    - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
+    - uses: actions/cache@9b0c1fce7a93df8e3bb8926b0d6e9d89e92f20a7
       with:
-        docker-registry: ${{ env.DOCKER_REGISTRY }}
-        docker-tag: ${{ github.ref_name }}
-        docker-target: linux-amd64
-        docker-push: 1
-        docker-ghcr-username: ${{ secrets.DOCKER_GHCR_USERNAME }}
-        docker-ghcr-pat: ${{ secrets.DOCKER_GHCR_PAT }}
-        component: failover
+        path: /home/runner/buildx-cache
+        key: ${{ runner.os }}-buildx-failover
+    - run: just controller-build-image --platform 'linux/amd64,linux/arm64,linux/arm/v7'
+    - uses: docker/login-action@49ed152c8eca782a232dede0303416e8f356c37b
+      with:
+        registry: ghcr.io
+        username: ${{ secrets.DOCKER_GHCR_USERNAME }}
+        password: ${{ secrets.DOCKER_GHCR_PAT }}
+    - run: just controller-build-image --platform 'linux/amd64,linux/arm64,linux/arm/v7' --output type=registry --tag 'ghcr.io/linkerd/failover:${{ github.ref_name }}'
+    - run: action-docker-prune /home/runner/buildx-cache
 
   integration-tests:
     runs-on: ubuntu-20.04
@@ -42,10 +52,10 @@ jobs:
     - name: Create cluster
       uses: AbsaOSS/k3d-action@b176c2a6dcae72e3e64e3e4d61751904ec314002
       with:
-        cluster-name: testing
+        cluster-name: default
     - name: Install linkerd
       run: |
-        curl -sL https://run.linkerd.io/install-edge | sh
+        curl -sL https://run.linkerd.io/install | sh
         export PATH=$PATH:~/.linkerd2/bin
         linkerd install --crds | kubectl apply -f -
         linkerd install | kubectl apply -f -
@@ -55,10 +65,10 @@ jobs:
         helm repo add linkerd-smi https://linkerd.github.io/linkerd-smi
         helm repo up
         helm install linkerd-smi -n linkerd-smi --create-namespace --wait linkerd-smi/linkerd-smi
-    - name: Install current linkerd-failover
+    - name: Install linkerd-failover
       run: |
         helm install linkerd-failover -n linkerd-failover --create-namespace --wait \
-          --set image.registry=${{ env.DOCKER_REGISTRY }} \
+          --set image.registry=ghcr.io/linkerd \
           --set image.tag=${{ github.ref_name }} \
           charts/linkerd-failover
     - name: Test routing to primary
@@ -105,27 +115,19 @@ jobs:
     needs: [integration-tests]
     permissions:
       contents: write
+    container: ghcr.io/linkerd/dev:v33-rust
     steps:
-    - name: Checkout code
-      uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
-    - name: Build CLI
-      run: |
-        cargo fetch
-        cargo build --frozen --target=x86_64-unknown-linux-gnu --release --package=linkerd-failover-cli
-        mv target/x86_64-unknown-linux-gnu/release/linkerd-failover-cli linkerd-failover-cli-linux-amd64
-    - name: Extract release notes
-      run: |
-        . bin/_release.sh
-        extract_release_notes NOTES.md
-    - name: Create release
-      id: create_release
-      uses: softprops/action-gh-release@1e07f4398721186383de40550babbdf2b84acfc5
+    - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
+    - run: just fetch
+    # TODO support alternate targets
+    - run: just profile=release static=true target=x86_64-unknown-linux-musl cli-build
+    - run: mv "$(just --evaluate profile=release target=x86_64-unknown-linux-musl cli-bin)" linkerd-failover-linux-amd64
+    - uses: softprops/action-gh-release@1e07f4398721186383de40550babbdf2b84acfc5
       with:
         draft: false
         prerelease: false
-        body_path: NOTES.md
-        files: |
-          ./linkerd-failover-cli-linux-amd64
+        generate_release_notes: true
+        files: ./linkerd-failover-linux-amd64
 
   chart-deploy:
     name: Helm chart deploy
@@ -133,16 +135,12 @@ jobs:
     runs-on: ubuntu-20.04
     needs: [gh-release]
     steps:
-    - name: Checkout code
-      uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
-    - name: Set up Helm
-      uses: azure/setup-helm@f382f75448129b3be48f8121b9857be18d815a82
-    - name: Log into GCP
-      uses: 'google-github-actions/auth@ef5d53e30bbcd8d0836f4288f5e50ff3e086997d'
+    - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
+    - uses: azure/setup-helm@f382f75448129b3be48f8121b9857be18d815a82
+    - uses: google-github-actions/auth@ef5d53e30bbcd8d0836f4288f5e50ff3e086997d
       with:
         credentials_json: ${{ secrets.LINKERD_SITE_TOKEN }}
-    - name: Set up Cloud SDK
-      uses: 'google-github-actions/setup-gcloud@75fd574e9690e7c4a4681d1255d1c341cf0d9a8c'
+    - uses: google-github-actions/setup-gcloud@75fd574e9690e7c4a4681d1255d1c341cf0d9a8c
     - name: Edge Helm chart creation and upload
       if: contains(github.ref, '-edge')
       run: |

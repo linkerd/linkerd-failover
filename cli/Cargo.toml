@@ -5,9 +5,15 @@ authors = ["Linkerd authors <cncf-linkerd-dev@lists.cncf.io>"]
 edition = "2018"
 license = "Apache-2.0"
 
+[features]
+default = []
+# Supports static linking
+openssl-vendored = ["openssl/vendored"]
+
 [dependencies]
 anyhow = "1"
 linkerd-failover-controller = { path = "../controller" }
+openssl = "0.10.42"
 serde = "1"
 serde_json = "1"
 

@@ -4,7 +4,7 @@ use kubert::ClientArgs;
 use linkerd_failover_cli::{check, status};
 
 #[derive(Parser)]
-#[command(name = "linkerd-failover", author, version, about, long_about = None)]
+#[command(author, version, about, long_about = None)]
 /// Manages the failover extension of Linkerd service mesh.
 struct Cli {
     #[command(flatten)]

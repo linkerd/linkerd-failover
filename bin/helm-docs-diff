@@ -2,7 +2,7 @@
 
 set -eu
 
-bin/helm-docs
+helm-docs
 
 dir_dirty=$(git diff HEAD)
 if [ -z "$dir_dirty" ]; then
@@ -11,5 +11,5 @@ if [ -z "$dir_dirty" ]; then
 else
   echo 'Helm-docs generated readmes diverge from current chart readmes:'
   git status
-  exit 64
+  exit 1
 fi

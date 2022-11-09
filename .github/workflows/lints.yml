@@ -20,7 +20,7 @@ jobs:
   fmt:
     timeout-minutes: 5
     runs-on: ubuntu-latest
-    container: docker://ghcr.io/linkerd/dev:v32-rust
+    container: ghcr.io/linkerd/dev:v33-rust
     steps:
       - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
       - run: cargo fmt --all -- --check
@@ -28,7 +28,7 @@ jobs:
   clippy:
     timeout-minutes: 5
     runs-on: ubuntu-latest
-    container: docker://ghcr.io/linkerd/dev:v32-rust
+    container: ghcr.io/linkerd/dev:v33-rust
     steps:
       - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
-      - run: cargo clippy --workspace --all-targets --message-format=json | cargo-action-fmt
+      - run: just clippy

@@ -11,8 +11,12 @@ permissions:
 
 jobs:
   markdownlint:
-    timeout-minutes: 10
+    timeout-minutes: 5
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
-      - run: bin/markdownlint-all
+      - uses: DavidAnson/markdownlint-cli2-action@e3969ef4ed874458f4b66d4631f78fff7717012c
+        with:
+          globs: |
+            **/*.md
+            !target/**
