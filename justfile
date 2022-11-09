@@ -1,7 +1,10 @@
 
-target := "x86_64-unknown-linux-musl"
+target := "x86_64-unknown-linux-gnu"
+static := 'false'
 profile := 'debug' # or 'release'
 _just-cargo := 'just-cargo profile=' + profile +  ' target=' + target
+
+_features := if static == 'true' { '--features=openssl-vendored' } else { '' }
 
 build: fetch cli-build controller-build-image
 
@@ -21,7 +24,10 @@ cli-version:
     @-just-cargo crate-version linkerd-failover-cli
 
 cli-build: fetch
-    @-{{ _just-cargo }} build --bin=linkerd-failover --package=linkerd-failover-cli --frozen
+    @-{{ _just-cargo }} build --frozen \
+        --package=linkerd-failover-cli \
+        --bin=linkerd-failover \
+        {{ _features }}
     du -sh {{ cli-bin }}
     sha256sum {{ cli-bin }}
 
@@ -39,7 +45,9 @@ controller-version:
     @-just-cargo crate-version linkerd-failover-controller
 
 controller-build: fetch
-    @-{{ _just-cargo }} build --package=linkerd-failover-controller --frozen
+    @-{{ _just-cargo }} build --frozen \
+        --package=linkerd-failover-controller \
+        {{ _features }}
     du -sh {{ controller-bin }}
     sha256sum {{ controller-bin }}
 

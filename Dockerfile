@@ -19,7 +19,7 @@ RUN --mount=type=cache,target=target \
         arm) echo armv7-unknown-linux-musleabihf ;; \
         *) echo "unsupported architecture: $TARGETARCH" >&2; exit 1 ;; \
     esac) && \
-    just target="$target" profile='release' controller-build && \
+    just target="$target" profile='release' static='true' controller-build && \
     mkdir /out && mv $(just --evaluate target="$target" profile='release' controller-bin) /out
 
 FROM scratch as runtime

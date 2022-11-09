@@ -26,17 +26,17 @@ jobs:
     - run: apt update && apt install -y docker.io
     - uses: docker/setup-qemu-action@27d0a4f181a40b142cce983c5393082c365d1480
     - uses: docker/setup-buildx-action@94ab11c41e45d028884a99163086648e898eed25
-    - uses: docker/login-action@49ed152c8eca782a232dede0303416e8f356c37b
-      with:
-        registry: ghcr.io
-        username: ${{ secrets.DOCKER_GHCR_USERNAME }}
-        password: ${{ secrets.DOCKER_GHCR_PAT }}
     - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
     - uses: actions/cache@9b0c1fce7a93df8e3bb8926b0d6e9d89e92f20a7
       with:
         path: /home/runner/buildx-cache
         key: ${{ runner.os }}-buildx-failover
     - run: just controller-build-image --platform 'linux/amd64,linux/arm64,linux/arm/v7'
+    - uses: docker/login-action@49ed152c8eca782a232dede0303416e8f356c37b
+      with:
+        registry: ghcr.io
+        username: ${{ secrets.DOCKER_GHCR_USERNAME }}
+        password: ${{ secrets.DOCKER_GHCR_PAT }}
     - run: just controller-build-image --platform 'linux/amd64,linux/arm64,linux/arm/v7' --output type=registry --tag 'ghcr.io/linkerd/failover:${{ github.ref_name }}'
     - run: action-docker-prune /home/runner/buildx-cache
 
@@ -120,7 +120,7 @@ jobs:
     - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
     - run: just fetch
     # TODO support alternate targets
-    - run: just profile=release target=x86_64-unknown-linux-musl cli-build
+    - run: just profile=release static=true target=x86_64-unknown-linux-musl cli-build
     - run: mv "$(just --evaluate profile=release target=x86_64-unknown-linux-musl cli-bin)" linkerd-failover-linux-amd64
     - uses: softprops/action-gh-release@1e07f4398721186383de40550babbdf2b84acfc5
       with:
