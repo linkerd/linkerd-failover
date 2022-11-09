@@ -1,6 +1,6 @@
 name: Release
 
-# TODO(ver) This workflow can ONLY be exercise in the course of publishing a
+# TODO(ver) This workflow can ONLY be exercised in the course of publishing a
 # release. This should be changed to exercise the release workflow without
 # publishing artifacts.
 #
