@@ -137,10 +137,10 @@ jobs:
     steps:
     - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
     - uses: azure/setup-helm@f382f75448129b3be48f8121b9857be18d815a82
-    - uses: google-github-actions/auth@c4799db9111fba4461e9f9da8732e5057b394f72
+    - uses: google-github-actions/auth@ef5d53e30bbcd8d0836f4288f5e50ff3e086997d
       with:
         credentials_json: ${{ secrets.LINKERD_SITE_TOKEN }}
-    - uses: google-github-actions/setup-gcloud@ee9693ff89cdf73862b8a13988f6a71070e8fc58
+    - uses: google-github-actions/setup-gcloud@75fd574e9690e7c4a4681d1255d1c341cf0d9a8c
     - name: Edge Helm chart creation and upload
       if: contains(github.ref, '-edge')
       run: |
