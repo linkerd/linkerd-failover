@@ -32,7 +32,7 @@ jobs:
         path: /home/runner/buildx-cache
         key: ${{ runner.os }}-buildx-failover
     - run: just controller-build-image --platform 'linux/amd64,linux/arm64,linux/arm/v7'
-    - uses: docker/login-action@49ed152c8eca782a232dede0303416e8f356c37b
+    - uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a
       with:
         registry: ghcr.io
         username: ${{ secrets.DOCKER_GHCR_USERNAME }}
