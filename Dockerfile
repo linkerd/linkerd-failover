@@ -1,5 +1,4 @@
-ARG DEV=ghcr.io/linkerd/dev:v33
-FROM --platform=$BUILDPLATFORM $DEV-rust-cross as controller
+FROM --platform=$BUILDPLATFORM ghcr.io/linkerd/dev:v34-rust-musl as controller
 WORKDIR /build
 RUN mkdir -p target/bin
 COPY Cargo.toml Cargo.lock .
@@ -8,11 +7,11 @@ RUN mkdir -p cli/src && \
 COPY cli/Cargo.toml cli/Cargo.toml
 COPY controller controller
 COPY justfile justfile
-RUN --mount=type=cache,from=ghcr.io/linkerd/dev:v32-rust-cross,source=/usr/local/cargo,target=/usr/local/cargo \
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
     cargo fetch --locked
 ARG TARGETARCH
 RUN --mount=type=cache,target=target \
-    --mount=type=cache,from=ghcr.io/linkerd/dev:v32-rust-cross,source=/usr/local/cargo,target=/usr/local/cargo \
+    --mount=type=cache,target=/usr/local/cargo/registry \
     target=$(case "$TARGETARCH" in \
         amd64) echo x86_64-unknown-linux-musl ;; \
         arm64) echo aarch64-unknown-linux-musl ;; \
