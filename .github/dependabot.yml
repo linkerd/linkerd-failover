@@ -21,6 +21,7 @@ updates:
       - dependency-name: "futures-sink"
       - dependency-name: "futures-task"
       - dependency-name: "futures-util"
+      - dependency-name: "kube"
       - dependency-name: "kube-client"
       - dependency-name: "kube-core"
       - dependency-name: "kube-derive"
