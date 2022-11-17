@@ -19,38 +19,46 @@ permissions:
 
 jobs:
   docker-build:
-    runs-on: ubuntu-20.04
-    container: ghcr.io/linkerd/dev:v33-tools
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-    - run: apt update && apt install -y docker.io
-    - uses: docker/setup-qemu-action@e81a89b1732b9c48d79cd809d8d81d79c4647a18
-    - uses: docker/setup-buildx-action@8c0edbc76e98fa90f69d9a2c020dcb50019dc325
     - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
     - uses: actions/cache@9b0c1fce7a93df8e3bb8926b0d6e9d89e92f20a7
       with:
-        path: /home/runner/buildx-cache
-        key: ${{ runner.os }}-buildx-failover
-    - run: just controller-build-image --platform 'linux/amd64,linux/arm64,linux/arm/v7'
+        path: target/buildx
+        key: buildx-${{ runner.os }}-${{ github.sha }}
+        restore-keys: buildx-${{ runner.os }}-
+    - uses: docker/setup-qemu-action@e81a89b1732b9c48d79cd809d8d81d79c4647a18
+    - uses: docker/setup-buildx-action@8c0edbc76e98fa90f69d9a2c020dcb50019dc325
+    - uses: extractions/setup-just@95b912dc5d3ed106a72907f2f9b91e76d60bdb76
+    - run: just controller-build-image
+        --platform linux/amd64,linux/arm64,linux/arm/v7
+        --cache-from type=local,src=target/buildx
+        --cache-to type=local,dest=target/buildx
+    - uses: docker://ghcr.io/linkerd/dev:v34-action
+      with:
+        args: prune-action-cache target/buildx
     - uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a
       with:
         registry: ghcr.io
         username: ${{ secrets.DOCKER_GHCR_USERNAME }}
         password: ${{ secrets.DOCKER_GHCR_PAT }}
-    - run: just controller-build-image --platform 'linux/amd64,linux/arm64,linux/arm/v7' --output type=registry --tag 'ghcr.io/linkerd/failover:${{ github.ref_name }}'
-    - run: action-docker-prune /home/runner/buildx-cache
+    - run: just controller-build-image
+        --platform linux/amd64,linux/arm64,linux/arm/v7
+        --cache-from 'type=local,src=target/buildx'
+        --tag 'ghcr.io/linkerd/failover:${{ github.ref_name }}'
+        --output type=registry
 
   integration-tests:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: [docker-build]
     steps:
-    - name: Checkout code
-      uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
-    - name: Set up Helm
-      uses: azure/setup-helm@f382f75448129b3be48f8121b9857be18d815a82
-    - name: Create cluster
-      uses: AbsaOSS/k3d-action@b176c2a6dcae72e3e64e3e4d61751904ec314002
+    - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
+    - uses: azure/setup-helm@f382f75448129b3be48f8121b9857be18d815a82
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+    - uses: AbsaOSS/k3d-action@b176c2a6dcae72e3e64e3e4d61751904ec314002
       with:
         cluster-name: default
     - name: Install linkerd
@@ -109,13 +117,12 @@ jobs:
         eastShouldReceiveTraffic: false
 
   gh-release:
-    name: Create GH release
     timeout-minutes: 10
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     needs: [integration-tests]
     permissions:
       contents: write
-    container: ghcr.io/linkerd/dev:v33-rust
+    container: docker://ghcr.io/linkerd/dev:v34-rust-musl
     steps:
     - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
     - run: just fetch
@@ -130,9 +137,8 @@ jobs:
         files: ./linkerd-failover-linux-amd64
 
   chart-deploy:
-    name: Helm chart deploy
     timeout-minutes: 10
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     needs: [gh-release]
     steps:
     - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
@@ -141,7 +147,7 @@ jobs:
       with:
         credentials_json: ${{ secrets.LINKERD_SITE_TOKEN }}
     - uses: google-github-actions/setup-gcloud@d51b5346f85640ec2aa2fa057354d2b82c2fcbce
-    - name: Edge Helm chart creation and upload
+    - name: Publish edge helm chart
       if: contains(github.ref, '-edge')
       run: |
         mkdir -p target/helm
@@ -150,7 +156,7 @@ jobs:
         gsutil cp gs://helm.linkerd.io/edge/index.yaml "target/helm/index-pre-failover-${{ github.ref_name }}".yaml
         helm repo index --url https://helm.linkerd.io/edge/ --merge "target/helm/index-pre-failover-${{ github.ref_name }}".yaml target/helm
         gsutil rsync target/helm gs://helm.linkerd.io/edge
-    - name: Stable Helm chart creation and upload
+    - name: Publish stable helm chart
       if: ${{ !contains(github.ref, '-edge') }}
       run: |
         mkdir -p target/helm

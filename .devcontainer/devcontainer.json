@@ -1,8 +1,9 @@
 {
     "name": "linkerd-failover.dev",
-    "image": "ghcr.io/linkerd/dev:v33",
+    "image": "ghcr.io/linkerd/dev:v34",
     "extensions": [
         "DavidAnson.vscode-markdownlint",
+        "kokakiwi.vscode-just",
         "NathanRidley.autotrim",
         "rust-lang.rust-analyzer",
         "samverschueren.final-newline",

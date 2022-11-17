@@ -21,9 +21,20 @@ jobs:
   test:
     timeout-minutes: 10
     runs-on: ubuntu-latest
-    container: ghcr.io/linkerd/dev:v33-rust
+    container: ghcr.io/linkerd/dev:v34-rust
     steps:
       - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
-      - run: cargo fetch
-      - run: cargo test --frozen --workspace --no-run --message-format=json | cargo-action-fmt
-      - run: cargo test --frozen --workspace
+      - run: just-cargo fetch --locked
+      - run: just-cargo test-build --frozen --workspace
+      - run: just-cargo test --frozen --workspace
+
+  cli-build:
+    timeout-minutes: 10
+    runs-on: ubuntu-latest
+    container: docker://ghcr.io/linkerd/dev:v34-rust-musl
+    steps:
+    - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
+    - run: just fetch
+    - run: just profile=debug static=true target=x86_64-unknown-linux-musl cli-build
+    - run: mv "$(just --evaluate profile=debug target=x86_64-unknown-linux-musl cli-bin)" linkerd-failover-linux-amd64
+    - run: ls -lh linkerd-failover-linux-amd64

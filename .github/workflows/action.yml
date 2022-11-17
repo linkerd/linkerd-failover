@@ -12,14 +12,16 @@ permissions:
 jobs:
   lint:
     runs-on: ubuntu-latest
-    container: ghcr.io/linkerd/dev:v33-tools
     steps:
       - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
-      - run: just-action lint
+      - uses: docker://ghcr.io/linkerd/dev:v34-action
+        with:
+          args: lint-actions
 
   dev-images:
     runs-on: ubuntu-latest
-    container: ghcr.io/linkerd/dev:v33-tools
     steps:
       - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
-      - run: just-action check-dev-images
+      - uses: docker://ghcr.io/linkerd/dev:v34-action
+        with:
+          args: check-action-images
