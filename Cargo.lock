@@ -765,16 +765,19 @@ version = "0.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "299878b335dccc1c2284b0f10a685daf101bd2f95facbc3ecadb2a6f4bdaed0a"
 dependencies = [
+ "chrono",
  "clap",
  "drain",
  "futures-core",
  "futures-util",
  "hyper",
+ "k8s-openapi",
  "kube-client",
  "kube-core",
  "kube-runtime",
  "pin-project-lite",
  "serde",
+ "serde_json",
  "thiserror",
  "tokio",
  "tracing",

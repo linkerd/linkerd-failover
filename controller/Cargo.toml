@@ -38,7 +38,7 @@ features = ["client", "derive", "openssl-tls", "runtime"]
 [dependencies.kubert]
 version = "0.12"
 default-features = false
-features = ["clap", "runtime"]
+features = ["clap", "lease", "runtime"]
 
 [dependencies.tokio]
 version = "1"
