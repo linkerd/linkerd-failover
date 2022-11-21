@@ -33,13 +33,13 @@ version = "*"
 
 [bans]
 multiple-versions = "deny"
+# Wildcard dependencies are used for all workspace-local crates.
 wildcards = "allow"
 highlight = "all"
 deny = []
 skip-tree = []
 skip = []
 
-# Wildcard dependencies are used for all workspace-local crates.
 [sources]
 unknown-registry = "deny"
 unknown-git = "deny"
