@@ -22,22 +22,19 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+    - uses: linkerd/dev/actions/setup-tools@v35
+    - uses: docker/setup-qemu-action@e81a89b1732b9c48d79cd809d8d81d79c4647a18
     - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
     - uses: actions/cache@9b0c1fce7a93df8e3bb8926b0d6e9d89e92f20a7
       with:
         path: target/buildx
         key: buildx-${{ runner.os }}-${{ github.sha }}
         restore-keys: buildx-${{ runner.os }}-
-    - uses: docker/setup-qemu-action@e81a89b1732b9c48d79cd809d8d81d79c4647a18
-    - uses: docker/setup-buildx-action@8c0edbc76e98fa90f69d9a2c020dcb50019dc325
-    - uses: extractions/setup-just@95b912dc5d3ed106a72907f2f9b91e76d60bdb76
     - run: just controller-build-image
         --platform linux/amd64,linux/arm64,linux/arm/v7
         --cache-from type=local,src=target/buildx
         --cache-to type=local,dest=target/buildx
-    - uses: docker://ghcr.io/linkerd/dev:v34-action
-      with:
-        args: prune-action-cache target/buildx
+    - run: just-dev prune-action-cache target/buildx
     - uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a
       with:
         registry: ghcr.io
@@ -54,13 +51,9 @@ jobs:
     timeout-minutes: 10
     needs: [docker-build]
     steps:
+    - uses: linkerd/dev/actions/setup-tools@v35
     - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
-    - uses: azure/setup-helm@f382f75448129b3be48f8121b9857be18d815a82
-      with:
-        token: ${{ secrets.GITHUB_TOKEN }}
-    - uses: AbsaOSS/k3d-action@b176c2a6dcae72e3e64e3e4d61751904ec314002
-      with:
-        cluster-name: default
+    - run: just-k3d create use
     - name: Install linkerd
       run: |
         curl -sL https://run.linkerd.io/install | sh
@@ -122,7 +115,7 @@ jobs:
     needs: [integration-tests]
     permissions:
       contents: write
-    container: docker://ghcr.io/linkerd/dev:v34-rust-musl
+    container: ghcr.io/linkerd/dev:v35-rust-musl
     steps:
     - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
     - run: just fetch
@@ -141,12 +134,12 @@ jobs:
     runs-on: ubuntu-latest
     needs: [gh-release]
     steps:
-    - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
-    - uses: azure/setup-helm@f382f75448129b3be48f8121b9857be18d815a82
     - uses: google-github-actions/auth@ef5d53e30bbcd8d0836f4288f5e50ff3e086997d
       with:
         credentials_json: ${{ secrets.LINKERD_SITE_TOKEN }}
     - uses: google-github-actions/setup-gcloud@d51b5346f85640ec2aa2fa057354d2b82c2fcbce
+    - uses: linkerd/dev/actions/setup-tools@v35
+    - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
     - name: Publish edge helm chart
       if: contains(github.ref, '-edge')
       run: |
