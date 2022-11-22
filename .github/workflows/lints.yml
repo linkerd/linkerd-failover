@@ -20,17 +20,15 @@ jobs:
   fmt:
     timeout-minutes: 5
     runs-on: ubuntu-latest
+    container: ghcr.io/linkerd/dev:v35-rust
     steps:
       - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
-      - uses: docker://ghcr.io/linkerd/dev:v34-rust
-        with:
-          args: fmt -- --check
+      - run: just-cargo fmt -- --check
 
   clippy:
     timeout-minutes: 5
     runs-on: ubuntu-latest
+    container: ghcr.io/linkerd/dev:v35-rust
     steps:
       - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
-      - uses: docker://ghcr.io/linkerd/dev:v34-rust
-        with:
-          args: clippy
+      - run: just-cargo clippy

@@ -12,9 +12,8 @@ jobs:
   docker-build:
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    container: ghcr.io/linkerd/dev:v34-action
     steps:
-    - run: docker buildx create --use
+    - uses: linkerd/dev/actions/setup-tools@v35
     - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
     - uses: actions/cache@9b0c1fce7a93df8e3bb8926b0d6e9d89e92f20a7
       with:
@@ -39,27 +38,13 @@ jobs:
     timeout-minutes: 15
     needs: [docker-build]
     steps:
-    - uses: azure/setup-helm@f382f75448129b3be48f8121b9857be18d815a82
-      with:
-        token: ${{ secrets.GITHUB_TOKEN }}
-    - uses: AbsaOSS/k3d-action@b176c2a6dcae72e3e64e3e4d61751904ec314002
-      with:
-        cluster-name: default
-
+    - uses: linkerd/dev/actions/setup-tools@v35
+    - run: just-k3d create use
     - uses: actions/download-artifact@9782bd6a9848b53b110e712e20e42d89988822b7
       with:
         name: images
         path: /tmp/images
-    - name: Run k3d image import
-      run: |
-        # This can be flakey so retry it a few times.
-        for _ in {0..2} ; do
-          if k3d image import --mode=direct --cluster=default /tmp/images/controller.tar ; then
-            exit 0
-          fi
-          sleep 5
-        done
-        exit 1
+    - run: just-k3d import /tmp/images/controller.tar
 
     - name: Install linkerd
       run: |
