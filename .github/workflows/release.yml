@@ -122,7 +122,7 @@ jobs:
     # TODO support alternate targets
     - run: just profile=release static=true target=x86_64-unknown-linux-musl cli-build
     - run: mv "$(just --evaluate profile=release target=x86_64-unknown-linux-musl cli-bin)" linkerd-failover-linux-amd64
-    - uses: softprops/action-gh-release@1e07f4398721186383de40550babbdf2b84acfc5
+    - uses: softprops/action-gh-release@de2c0eb89ae2a093876385947365aca7b0e5f844
       with:
         draft: false
         prerelease: false
