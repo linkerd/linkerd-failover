@@ -11,20 +11,20 @@ build: fetch cli-build controller-build-image
 test-build: fetch cli-test-build controller-test-build
 
 fetch:
-    @-{{ _just-cargo }} fetch
+    @{{ _just-cargo }} fetch
 
 clippy:
-    @-{{ _just-cargo }} clippy --frozen
+    @{{ _just-cargo }} clippy --frozen
 
 # === CLI ===
 
 cli-bin := 'target' / target / profile / 'linkerd-failover'
 
 cli-version:
-    @-just-cargo crate-version linkerd-failover-cli
+    @just-cargo crate-version linkerd-failover-cli
 
 cli-build: fetch
-    @-{{ _just-cargo }} build --frozen \
+    @{{ _just-cargo }} build --frozen \
         --package=linkerd-failover-cli \
         --bin=linkerd-failover \
         {{ _features }}
@@ -32,20 +32,20 @@ cli-build: fetch
     sha256sum {{ cli-bin }}
 
 cli-test:
-    @-{{ _just-cargo }} test --package=linkerd-failover-cli --frozen
+    @{{ _just-cargo }} test --package=linkerd-failover-cli --frozen
 
 cli-test-build:
-    @-{{ _just-cargo }} test-build --package=linkerd-failover-cli --frozen
+    @{{ _just-cargo }} test-build --package=linkerd-failover-cli --frozen
 
 # === Controller ===
 
 controller-bin := 'target' / target / profile / 'linkerd-failover-controller'
 
 controller-version:
-    @-just-cargo crate-version linkerd-failover-controller
+    @just-cargo crate-version linkerd-failover-controller
 
 controller-build: fetch
-    @-{{ _just-cargo }} build --frozen \
+    @{{ _just-cargo }} build --frozen \
         --package=linkerd-failover-controller \
         {{ _features }}
     du -sh {{ controller-bin }}
@@ -55,13 +55,13 @@ controller-build-image *flags:
     docker buildx build . {{ flags }}
 
 controller-clippy:
-    @-{{ _just-cargo }} clippy --package=linkerd-failover-controller --frozen
+    @{{ _just-cargo }} clippy --package=linkerd-failover-controller --frozen
 
 controller-test:
-    @-{{ _just-cargo }} test --package=linkerd-failover-controller --frozen
+    @{{ _just-cargo }} test --package=linkerd-failover-controller --frozen
 
 controller-test-build:
-    @-{{ _just-cargo }} test-build --package=linkerd-failover-controller --frozen
+    @{{ _just-cargo }} test-build --package=linkerd-failover-controller --frozen
 
 # Error if the crate versions do not match the expected value
 assert-version expected:
