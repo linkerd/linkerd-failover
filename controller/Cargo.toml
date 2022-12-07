@@ -13,7 +13,7 @@ openssl-vendored = ["openssl/vendored"]
 [dependencies]
 anyhow = "1"
 futures = "0.3"
-openssl = "0.10.43"
+openssl = "0.10.44"
 schemars = "0.8"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
