@@ -15,7 +15,7 @@ jobs:
     steps:
     - uses: linkerd/dev/actions/setup-tools@v38
     - uses: actions/checkout@755da8c3cf115ac066823e79a1e1788f8940201b
-    - uses: actions/cache@9b0c1fce7a93df8e3bb8926b0d6e9d89e92f20a7
+    - uses: actions/cache@c17f4bf4666a8001b1a45c09eb7a485c41aa64c3
       with:
         path: target/buildx
         key: buildx-${{ runner.os }}-${{ github.sha }}
