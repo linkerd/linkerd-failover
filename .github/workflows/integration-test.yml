@@ -14,7 +14,7 @@ jobs:
     timeout-minutes: 15
     steps:
     - uses: linkerd/dev/actions/setup-tools@v38
-    - uses: actions/checkout@755da8c3cf115ac066823e79a1e1788f8940201b
+    - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c
     - uses: actions/cache@4723a57e26efda3a62cbde1812113b730952852d
       with:
         path: target/buildx
@@ -58,7 +58,7 @@ jobs:
         helm repo add linkerd-smi https://linkerd.github.io/linkerd-smi
         helm repo up
         helm install linkerd-smi -n linkerd-smi --create-namespace --wait linkerd-smi/linkerd-smi
-    - uses: actions/checkout@755da8c3cf115ac066823e79a1e1788f8940201b
+    - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c
     - name: Install current linkerd-failover
       run: |
         helm install linkerd-failover -n linkerd-failover --create-namespace --wait \
