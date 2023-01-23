@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-    - uses: linkerd/dev/actions/setup-tools@v38
+    - uses: linkerd/dev/actions/setup-tools@v39
     - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c
     - uses: actions/cache@58c146cc91c5b9e778e71775dfe9bf1442ad9a12
       with:
@@ -38,7 +38,7 @@ jobs:
     timeout-minutes: 15
     needs: [docker-build]
     steps:
-    - uses: linkerd/dev/actions/setup-tools@v38
+    - uses: linkerd/dev/actions/setup-tools@v39
     - run: just-k3d create use
     - uses: actions/download-artifact@9bc31d5ccc31df68ecc42ccf4149144866c47d8a
       with:
