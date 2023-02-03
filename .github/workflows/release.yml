@@ -137,7 +137,7 @@ jobs:
     - uses: google-github-actions/auth@ef5d53e30bbcd8d0836f4288f5e50ff3e086997d
       with:
         credentials_json: ${{ secrets.LINKERD_SITE_TOKEN }}
-    - uses: google-github-actions/setup-gcloud@d51b5346f85640ec2aa2fa057354d2b82c2fcbce
+    - uses: google-github-actions/setup-gcloud@62d4898025f6041e16b1068643bfc5a696863587
     - uses: linkerd/dev/actions/setup-tools@v39
     - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c
     - name: Publish edge helm chart
