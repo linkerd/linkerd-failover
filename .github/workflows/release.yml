@@ -20,7 +20,7 @@ permissions:
 jobs:
   docker-build:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 30
     steps:
     - uses: linkerd/dev/actions/setup-tools@v41
     - uses: docker/setup-qemu-action@e81a89b1732b9c48d79cd809d8d81d79c4647a18
