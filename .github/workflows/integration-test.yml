@@ -13,9 +13,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-    - uses: linkerd/dev/actions/setup-tools@v39
+    - uses: linkerd/dev/actions/setup-tools@v41
     - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c
-    - uses: actions/cache@940f3d7cf195ba83374c77632d1e2cbb2f24ae68
+    - uses: actions/cache@88522ab9f39a2ea568f7027eddc7d8d8bc9d59c8
       with:
         path: target/buildx
         key: buildx-${{ runner.os }}-${{ github.sha }}
@@ -38,7 +38,7 @@ jobs:
     timeout-minutes: 15
     needs: [docker-build]
     steps:
-    - uses: linkerd/dev/actions/setup-tools@v39
+    - uses: linkerd/dev/actions/setup-tools@v41
     - run: just-k3d create use
     - uses: actions/download-artifact@9bc31d5ccc31df68ecc42ccf4149144866c47d8a
       with:
