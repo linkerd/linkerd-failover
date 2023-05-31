@@ -1,5 +1,13 @@
 # Changes
 
+## 0.1.1
+
+- Dependencies bumps, clearing vulnerabilities (with no known exploits) on libc
+  and openssl
+- Build CLI and controller as static binaries
+- The controller docker image is now based on `scratch`
+- Added RBAC to allow publishing events associated to the TrafficSplit resource
+
 ## 0.1.0
 
 Even though 0.0.1-edge was stable enough, this is officially the first stable
