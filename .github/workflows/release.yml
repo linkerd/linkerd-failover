@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-    - uses: linkerd/dev/actions/setup-tools@v40
+    - uses: linkerd/dev/actions/setup-tools@v41
     - uses: docker/setup-qemu-action@e81a89b1732b9c48d79cd809d8d81d79c4647a18
     - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c
     - uses: actions/cache@88522ab9f39a2ea568f7027eddc7d8d8bc9d59c8
@@ -51,7 +51,7 @@ jobs:
     timeout-minutes: 10
     needs: [docker-build]
     steps:
-    - uses: linkerd/dev/actions/setup-tools@v40
+    - uses: linkerd/dev/actions/setup-tools@v41
     - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c
     - run: just-k3d create use
     - name: Install linkerd
@@ -138,7 +138,7 @@ jobs:
       with:
         credentials_json: ${{ secrets.LINKERD_SITE_TOKEN }}
     - uses: google-github-actions/setup-gcloud@e30db14379863a8c79331b04a9969f4c1e225e0b
-    - uses: linkerd/dev/actions/setup-tools@v40
+    - uses: linkerd/dev/actions/setup-tools@v41
     - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c
     - name: Publish edge helm chart
       if: contains(github.ref, '-edge')
