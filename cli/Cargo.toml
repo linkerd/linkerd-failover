@@ -18,22 +18,22 @@ serde = "1"
 serde_json = "1"
 
 [dependencies.clap]
-version = "4"
+version = "=4.1"
 default-features = false
 features = ["color", "derive", "env", "help", "std", "suggestions"]
 
 [dependencies.k8s-openapi]
-version = "0.16"
+version = "0.19"
 default-features = false
 features = ["v1_21"]
 
 [dependencies.kube]
-version = "0.76"
+version = "0.85"
 default-features = false
 features = ["client", "derive", "openssl-tls", "runtime"]
 
 [dependencies.kubert]
-version = "0.12"
+version = "0.18.0"
 default-features = false
 features = ["clap", "runtime"]
 
