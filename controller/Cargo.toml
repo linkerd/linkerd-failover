@@ -21,7 +21,8 @@ tokio-stream = "0.1"
 tracing = "0.1"
 
 [dependencies.clap]
-version = "4"
+# TODO: remove pinning after we upgrade rustc beyond 1.69.0
+version = "=4.1"
 default-features = false
 features = ["derive", "env", "help", "std"]
 
