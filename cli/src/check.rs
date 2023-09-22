@@ -20,9 +20,10 @@ struct Category {
     checks: Vec<CheckResult>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Default)]
 #[serde(rename_all = "lowercase")]
 enum CheckStatus {
+    #[default]
     Success,
     Error,
 }
@@ -40,12 +41,6 @@ pub struct CheckResult {
 impl CheckResult {
     pub fn success(&self) -> bool {
         matches!(self.result, CheckStatus::Success)
-    }
-}
-
-impl Default for CheckStatus {
-    fn default() -> CheckStatus {
-        CheckStatus::Success
     }
 }
 
