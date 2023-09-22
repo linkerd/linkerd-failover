@@ -1,5 +1,12 @@
 # Changes
 
+## 0.1.2
+
+- Dependencies bumps
+- Replaced curlimages/curl docker image in the namespace-metadata Job with
+  linkerd's extension-init image, to avoid all the OS luggage included in the
+  former, which generates CVE alerts.
+
 ## 0.1.1
 
 - Dependencies bumps, clearing vulnerabilities (with no known exploits) on libc
