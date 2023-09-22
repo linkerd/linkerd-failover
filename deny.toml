@@ -38,7 +38,22 @@ wildcards = "allow"
 highlight = "all"
 deny = []
 skip-tree = []
-skip = []
+skip = [
+    # `rustls-pemfile` and `k8s-openapi` depend on versions of `base64` that
+    # have diverged significantly.
+    { name = "base64" },
+    # `tower-http` (a transitive dep via `kubert`) depends on v2.x of `bitflags`,
+    # while pretty much the entire rest of the world is still on v1.x
+    { name = "bitflags", version = "1.0" },
+    # `tracing-subscriber` depends on `matchers` and `regex`, which depend on
+    # different versions of `regex-automata` and `regex-syntax`
+    { name = "regex-automata" },
+    { name = "regex-syntax" },
+    # syn v2 has been released and some libraries are slower to adopt it
+    { name = "syn", version = "1.0" },
+    # `hyper` and `tokio` depend on different `socket2` versions
+    { name = "socket2" },
+]
 
 [sources]
 unknown-registry = "deny"

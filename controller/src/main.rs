@@ -3,7 +3,7 @@
 
 use anyhow::{bail, Result};
 use clap::Parser;
-use kube::api::ListParams;
+use kube::runtime::watcher::Config;
 use linkerd_failover_controller::{endpoints, traffic_split, Ctx};
 use tokio::{sync::mpsc, time};
 use tracing::Instrument;
@@ -50,9 +50,9 @@ async fn main() -> Result<()> {
 
     // Create cached watches for traffic splits and endpoints. This enables us to watch for
     // updates and to lookup previously-observed objects.
-    let (endpoints, endpoints_events) = runtime.cache_all(ListParams::default());
+    let (endpoints, endpoints_events) = runtime.cache_all(Config::default());
     let (traffic_splits, traffic_split_events) =
-        runtime.cache_all(ListParams::default().labels(&selector));
+        runtime.cache_all(Config::default().labels(&selector));
 
     // This should be large enough to handle all traffic splits in the cluster so that a restart
     // doesn't completely fill the queue; but it shouldn't be so large that slow writes can cause
