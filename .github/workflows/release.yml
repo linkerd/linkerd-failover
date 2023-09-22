@@ -25,7 +25,7 @@ jobs:
     - uses: linkerd/dev/actions/setup-tools@v41
     - uses: docker/setup-qemu-action@68827325e0b33c7199eb31dd4e31fbe9023e06e3
     - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c
-    - uses: actions/cache@88522ab9f39a2ea568f7027eddc7d8d8bc9d59c8
+    - uses: actions/cache@704facf57e6136b1bc63b828d79edcd491f0ee84
       with:
         path: target/buildx
         key: buildx-${{ runner.os }}-${{ github.sha }}
