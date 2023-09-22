@@ -109,8 +109,13 @@ Kubernetes: `>=1.20.0-0`
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | image | object | `{"name":"failover","registry":"cr.l5d.io/linkerd","tag":"0.1.1"}` | Docker image |
+| linkerdNamespace | string | `"linkerd"` | Namespace of the Linkerd core control-plane install |
 | logFormat | string | `"plain"` | Log format (`plain` or `json`) |
 | logLevel | string | `"linkerd=info,warn"` | Log level |
+| namespaceMetadata.image.name | string | `"extension-init"` | Docker image name for the namespace-metadata instance |
+| namespaceMetadata.image.pullPolicy | string | `"IfNotPresent"` | Pull policy for the namespace-metadata instance |
+| namespaceMetadata.image.registry | string | `"cr.l5d.io/linkerd"` | Docker registry for the namespace-metadata instance |
+| namespaceMetadata.image.tag | string | `"v0.1.0"` | Docker image tag for the namespace-metadata instance |
 | selector | string | `nil` | Determines which `TrafficSplit` instances to consider for failover. If empty, defaults to failover.linkerd.io/controlled-by={{ .Release.Name }} |
 
 ----------------------------------------------
