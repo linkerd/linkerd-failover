@@ -1,3 +1,6 @@
+# -- Namespace of the Linkerd core control-plane install
+linkerdNamespace: linkerd
+
 # -- Log level
 logLevel: linkerd=info,warn
 
@@ -13,3 +16,14 @@ image:
 # -- Determines which `TrafficSplit` instances to consider for failover. If
 # empty, defaults to failover.linkerd.io/controlled-by={{ .Release.Name }}
 selector:
+
+namespaceMetadata:
+  image:
+    # -- Docker registry for the namespace-metadata instance
+    registry: cr.l5d.io/linkerd
+    # -- Docker image name for the namespace-metadata instance
+    name: extension-init
+    # -- Docker image tag for the namespace-metadata instance
+    tag: v0.1.0
+    # -- Pull policy for the namespace-metadata instance
+    pullPolicy: IfNotPresent
