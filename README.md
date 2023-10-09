@@ -8,8 +8,12 @@ The mechanism relies on Linkerd’s traffic-splitting functionality by providing
 an operator to alter the backend services' weights in real time depending on
 their readiness.
 
+**Note:** if you find issues in this extension, please file an issue against
+the [main Linkerd2 repo](https://github.com/linkerd/linkerd2/issues).
+
 ## Table of contents
 
+- [Issue Tracking](#issue-tracking)
 - [Requirements](#requirements)
 - [Configuration](#configuration)
 - [Installation](#installation)
@@ -17,6 +21,14 @@ their readiness.
 - [Implementation details](#implementation-details)
   - [Failover criteria](#failover-criteria)
   - [Failover logic](#failover-criteria)
+
+## Issue Tracking
+
+Issues are disabled in this repository since we track issues with this
+extension in the [main Linkerd2
+repo](https://github.com/linkerd/linkerd2/issues). The rationale here is
+simply that we've found over time that having issues scattered across multiple
+repos makes it too easy to lose track of things.
 
 ## Requirements
 
