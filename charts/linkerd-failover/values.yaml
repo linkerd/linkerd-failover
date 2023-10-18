@@ -13,6 +13,10 @@ image:
   name: failover
   tag: 0.1.2
 
+# -- imagePullSecrets to apply to all ServiceAccounts for pulling images from
+# private registries
+imagePullSecrets: []
+
 # -- Determines which `TrafficSplit` instances to consider for failover. If
 # empty, defaults to failover.linkerd.io/controlled-by={{ .Release.Name }}
 selector:

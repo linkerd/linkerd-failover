@@ -37,4 +37,7 @@ metadata:
   name: linkerd-failover
   labels:
     linkerd.io/extension: failover
-
+{{- if .Values.imagePullSecrets }}
+imagePullSecrets:
+{{ .Values.imagePullSecrets | toYaml }}
+{{- end }}
