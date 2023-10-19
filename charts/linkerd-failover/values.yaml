@@ -11,7 +11,7 @@ logFormat: plain
 image:
   registry: cr.l5d.io/linkerd
   name: failover
-  tag: 0.1.2
+  tag: 0.1.3
 
 # -- imagePullSecrets to apply to all ServiceAccounts for pulling images from
 # private registries

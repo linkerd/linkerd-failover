@@ -1,9 +1,9 @@
 <!-- markdownlint-disable -->
 # linkerd-failover
 
-![Version: 0.1.2](https://img.shields.io/badge/Version-0.1.2-informational?style=flat-square)
+![Version: 0.1.3](https://img.shields.io/badge/Version-0.1.3-informational?style=flat-square)
 ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square)
-![AppVersion: 0.1.2](https://img.shields.io/badge/AppVersion-0.1.2-informational?style=flat-square)
+![AppVersion: 0.1.3](https://img.shields.io/badge/AppVersion-0.1.3-informational?style=flat-square)
 
 **Homepage:** <https://linkerd.io>
 
@@ -108,7 +108,7 @@ Kubernetes: `>=1.20.0-0`
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| image | object | `{"name":"failover","registry":"cr.l5d.io/linkerd","tag":"0.1.2"}` | Docker image |
+| image | object | `{"name":"failover","registry":"cr.l5d.io/linkerd","tag":"0.1.3"}` | Docker image |
 | imagePullSecrets | list | `[]` | imagePullSecrets to apply to all ServiceAccounts for pulling images from private registries |
 | linkerdNamespace | string | `"linkerd"` | Namespace of the Linkerd core control-plane install |
 | logFormat | string | `"plain"` | Log format (`plain` or `json`) |
