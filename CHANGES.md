@@ -1,5 +1,10 @@
 # Changes
 
+## 0.1.3
+
+This release adds `imagePullSecrets` support, for pulling images from private
+docker registries.
+
 ## 0.1.2
 
 - Dependencies bumps
