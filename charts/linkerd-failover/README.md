@@ -109,6 +109,7 @@ Kubernetes: `>=1.20.0-0`
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | image | object | `{"name":"failover","registry":"cr.l5d.io/linkerd","tag":"0.1.2"}` | Docker image |
+| imagePullSecrets | list | `[]` | imagePullSecrets to apply to all ServiceAccounts for pulling images from private registries |
 | linkerdNamespace | string | `"linkerd"` | Namespace of the Linkerd core control-plane install |
 | logFormat | string | `"plain"` | Log format (`plain` or `json`) |
 | logLevel | string | `"linkerd=info,warn"` | Log level |
