@@ -23,7 +23,7 @@ jobs:
     runs-on: ubuntu-latest
     container: ghcr.io/linkerd/dev:v41-rust
     steps:
-      - uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11
       - run: just-cargo fetch --locked
       - run: just-cargo test-build --frozen --workspace
       - run: just-cargo test --frozen --workspace
@@ -33,7 +33,7 @@ jobs:
     runs-on: ubuntu-latest
     container: ghcr.io/linkerd/dev:v41-rust-musl
     steps:
-    - uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608
+    - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11
     - run: just fetch
     - run: just profile=debug static=true target=x86_64-unknown-linux-musl cli-build
     - run: mv "$(just --evaluate profile=debug target=x86_64-unknown-linux-musl cli-bin)" linkerd-failover-linux-amd64
