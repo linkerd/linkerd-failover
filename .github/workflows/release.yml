@@ -134,7 +134,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [gh-release]
     steps:
-    - uses: google-github-actions/auth@67e9c72af6e0492df856527b474995862b7b6591
+    - uses: google-github-actions/auth@f6de81663f7788d05bd15bcce18f0e57f23f0846
       with:
         credentials_json: ${{ secrets.LINKERD_SITE_TOKEN }}
     - uses: google-github-actions/setup-gcloud@5a5f7b85fca43e76e53463acaa9d408a03c98d3a
