@@ -17,6 +17,9 @@ image:
 # private registries
 imagePullSecrets: []
 
+# -- nodeSelector sections. For information on node selector sections, please refer  [ K8s documentation](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#nodeselector) for more details.
+nodeSelector: {}
+
 # -- Determines which `TrafficSplit` instances to consider for failover. If
 # empty, defaults to failover.linkerd.io/controlled-by={{ .Release.Name }}
 selector:
