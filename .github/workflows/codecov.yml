@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     container:
-      image: ghcr.io/linkerd/dev:v41-rust
+      image: ghcr.io/linkerd/dev:v44-rust
       options: --security-opt seccomp=unconfined
     steps:
       - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11

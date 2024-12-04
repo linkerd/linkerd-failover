@@ -1,4 +1,4 @@
-FROM --platform=$BUILDPLATFORM ghcr.io/linkerd/dev:v41-rust-musl as controller
+FROM --platform=$BUILDPLATFORM ghcr.io/linkerd/dev:v44-rust-musl as controller
 WORKDIR /build
 RUN mkdir -p target/bin
 COPY Cargo.toml Cargo.lock .

@@ -26,7 +26,7 @@ impl<T> Column<T> {
     }
 }
 
-impl<'a, T> Display for Table<'a, T> {
+impl<T> Display for Table<'_, T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let column_widths = self
             .cols
