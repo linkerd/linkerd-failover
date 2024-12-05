@@ -59,7 +59,7 @@ jobs:
         curl -sL https://run.linkerd.io/install | sh
         export PATH=$PATH:~/.linkerd2/bin
         linkerd install --crds | kubectl apply -f -
-        linkerd install | kubectl apply -f -
+        linkerd install --set proxy.enableShutdownEndpoint=true | kubectl apply -f -
         linkerd check
     - name: Install linkerd-smi
       run: |
