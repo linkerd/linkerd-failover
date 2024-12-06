@@ -21,7 +21,7 @@ jobs:
   test:
     timeout-minutes: 10
     runs-on: ubuntu-latest
-    container: ghcr.io/linkerd/dev:v41-rust
+    container: ghcr.io/linkerd/dev:v44-rust
     steps:
       - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11
       - run: just-cargo fetch --locked
@@ -31,7 +31,7 @@ jobs:
   cli-build:
     timeout-minutes: 10
     runs-on: ubuntu-latest
-    container: ghcr.io/linkerd/dev:v41-rust-musl
+    container: ghcr.io/linkerd/dev:v44-rust-musl
     steps:
     - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11
     - run: just fetch

@@ -1,6 +1,6 @@
 {
     "name": "linkerd-failover.dev",
-    "image": "ghcr.io/linkerd/dev:v41",
+    "image": "ghcr.io/linkerd/dev:v44",
     "extensions": [
         "DavidAnson.vscode-markdownlint",
         "kokakiwi.vscode-just",
