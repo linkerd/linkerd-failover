@@ -16,7 +16,7 @@ jobs:
       image: ghcr.io/linkerd/dev:v44-rust
       options: --security-opt seccomp=unconfined
     steps:
-      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       - run: cargo-tarpaulin tarpaulin --workspace --out Xml
       - uses: codecov/codecov-action@7f8b4b4bde536c465e797be725718b88c5d95e0e
         with:
