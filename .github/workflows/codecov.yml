@@ -18,6 +18,6 @@ jobs:
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       - run: cargo-tarpaulin tarpaulin --workspace --out Xml
-      - uses: codecov/codecov-action@7f8b4b4bde536c465e797be725718b88c5d95e0e
+      - uses: codecov/codecov-action@5a605bd92782ce0810fa3b8acc235c921b497052
         with:
           flags: unittests,rust
